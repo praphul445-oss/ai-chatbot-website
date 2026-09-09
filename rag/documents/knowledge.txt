@@ -1,0 +1,13 @@
+My AI Chatbot Project
+
+This is an offline-first AI chatbot project.
+
+The chatbot uses Ollama and the Llama 3.2 3B model for local AI responses.
+
+The project uses conversational memory so the chatbot can remember information from previous conversations.
+
+RAG will allow the chatbot to search information from documents and use that information when answering questions.
+
+The hardware will eventually use an ESP32, microphone, speaker, OLED display, and other components.
+
+The ESP32 will communicate with the AI system over Wi-Fi.

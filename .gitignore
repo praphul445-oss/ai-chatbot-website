@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+conversation_history.json
+
+rag/chroma_db/
+
+.venv/
+venv/
+env/
+
+*.pdf
