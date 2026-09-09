@@ -18,6 +18,24 @@
             🤖 My AI Chatbot
         </div>
 
+        <!-- PDF UPLOAD AREA -->
+        <div class="upload-area">
+
+            <input
+                type="file"
+                id="pdfInput"
+                accept=".pdf,application/pdf"
+            >
+
+            <button onclick="uploadPDF()">
+                📄 Upload PDF
+            </button>
+
+            <div id="uploadStatus"></div>
+
+        </div>
+
+        <!-- CHAT AREA -->
         <div class="chatbox" id="chatbox">
 
             <div class="message ai-message">
@@ -26,6 +44,7 @@
 
         </div>
 
+        <!-- MESSAGE INPUT -->
         <div class="input-area">
 
             <input

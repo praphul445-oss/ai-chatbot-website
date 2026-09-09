@@ -29,10 +29,8 @@ async function sendMessage() {
 
     chatbox.appendChild(userMessage);
 
-    // Clear input
     input.value = "";
 
-    // Scroll down
     chatbox.scrollTop = chatbox.scrollHeight;
 
 
@@ -77,6 +75,7 @@ async function sendMessage() {
         // -----------------------------
 
         if (!response.ok) {
+
             throw new Error(
                 "Backend error: " + response.status
             );
@@ -91,7 +90,7 @@ async function sendMessage() {
 
 
         // -----------------------------
-        // REMOVE "Thinking..."
+        // Remove Thinking
         // -----------------------------
 
         thinkingMessage.remove();
@@ -109,10 +108,6 @@ async function sendMessage() {
         );
 
 
-        // -----------------------------
-        // Get AI response
-        // -----------------------------
-
         if (data.reply) {
 
             aiMessage.textContent = data.reply;
@@ -121,7 +116,6 @@ async function sendMessage() {
 
             aiMessage.textContent =
                 "⚠️ The AI returned an empty response.";
-
         }
 
 
@@ -136,15 +130,14 @@ async function sendMessage() {
 
     } catch (error) {
 
-        // -----------------------------
-        // Show error in console
-        // -----------------------------
+        console.error(
+            "CHAT ERROR:",
+            error
+        );
 
-        console.error("CHAT ERROR:", error);
-
 
         // -----------------------------
-        // Remove "Thinking..."
+        // Remove Thinking
         // -----------------------------
 
         thinkingMessage.remove();
@@ -154,7 +147,8 @@ async function sendMessage() {
         // Create error message
         // -----------------------------
 
-        const errorMessage = document.createElement("div");
+        const errorMessage =
+            document.createElement("div");
 
         errorMessage.classList.add(
             "message",
@@ -165,13 +159,151 @@ async function sendMessage() {
             "❌ Error: Cannot connect to AI backend.";
 
 
-        // -----------------------------
-        // Add error message
-        // -----------------------------
-
         chatbox.appendChild(errorMessage);
 
-        chatbox.scrollTop = chatbox.scrollHeight;
+        chatbox.scrollTop =
+            chatbox.scrollHeight;
+    }
+}
+
+
+// =====================================
+// PDF UPLOAD
+// =====================================
+
+async function uploadPDF() {
+
+    // -----------------------------
+    // Get selected PDF
+    // -----------------------------
+
+    const pdfInput =
+        document.getElementById("pdfInput");
+
+    const uploadStatus =
+        document.getElementById("uploadStatus");
+
+
+    // -----------------------------
+    // Check if PDF selected
+    // -----------------------------
+
+    if (pdfInput.files.length === 0) {
+
+        uploadStatus.textContent =
+            "⚠️ Please select a PDF first.";
+
+        return;
+    }
+
+
+    const file = pdfInput.files[0];
+
+
+    // -----------------------------
+    // Check file type
+    // -----------------------------
+
+    if (
+        file.type !== "application/pdf" &&
+        !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+
+        uploadStatus.textContent =
+            "❌ Please select a PDF file.";
+
+        return;
+    }
+
+
+    // -----------------------------
+    // Show uploading status
+    // -----------------------------
+
+    uploadStatus.textContent =
+        "⏳ Uploading PDF...";
+
+
+    try {
+
+        // -----------------------------
+        // Create FormData
+        // -----------------------------
+
+        const formData = new FormData();
+
+        formData.append(
+            "file",
+            file
+        );
+
+
+        // -----------------------------
+        // Send PDF to FastAPI
+        // -----------------------------
+
+        const response = await fetch(
+            "http://127.0.0.1:8000/upload",
+            {
+                method: "POST",
+
+                body: formData
+            }
+        );
+
+
+        // -----------------------------
+        // Check response
+        // -----------------------------
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Upload error: " +
+                response.status
+            );
+        }
+
+
+        // -----------------------------
+        // Convert response to JSON
+        // -----------------------------
+
+        const data =
+            await response.json();
+
+
+        // -----------------------------
+        // Show result
+        // -----------------------------
+
+        if (data.success) {
+
+            uploadStatus.textContent =
+                "✅ " +
+                data.message +
+                " | " +
+                data.chunks_added +
+                " chunks added.";
+
+        } else {
+
+            uploadStatus.textContent =
+                "❌ " +
+                data.message;
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "PDF UPLOAD ERROR:",
+            error
+        );
+
+
+        uploadStatus.textContent =
+            "❌ Could not upload PDF. Check that the FastAPI server is running.";
     }
 }
 
@@ -182,13 +314,16 @@ async function sendMessage() {
 
 document
     .getElementById("userInput")
-    .addEventListener("keydown", function(event) {
+    .addEventListener(
+        "keydown",
+        function(event) {
 
-        if (event.key === "Enter") {
+            if (event.key === "Enter") {
 
-            event.preventDefault();
+                event.preventDefault();
 
-            sendMessage();
+                sendMessage();
+            }
+
         }
-
-    });
+    );
