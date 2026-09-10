@@ -20,7 +20,7 @@ from openai import OpenAI
 app = FastAPI(
     title="My AI Chatbot API",
     description="AI Chatbot with OpenAI, Memory and Improved Local RAG",
-    version="6.0"
+    version="7.0"
 )
 
 
@@ -125,48 +125,42 @@ IMPORTANT RAG RULES:
 
 7. Do not mention internal retrieval scores or technical
    implementation details unless the user asks.
+
+8. If the user asks a normal general question and the
+   uploaded documents are not relevant, answer normally.
 """
 
 
 def load_history():
 
-    if os.path.exists(MEMORY_FILE):
+    if not os.path.exists(MEMORY_FILE):
+        return []
 
-        try:
+    try:
 
-            with open(
-                MEMORY_FILE,
-                "r",
-                encoding="utf-8"
-            ) as f:
+        with open(
+            MEMORY_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
 
-                history = json.load(f)
+            history = json.load(f)
 
-            if not isinstance(history, list):
-
-                return []
-
-            return history[
-                -MAX_MEMORY_MESSAGES:
-            ]
-
-        except Exception as e:
-
-            print(
-                "MEMORY LOAD ERROR:",
-                e
-            )
-
+        if not isinstance(history, list):
             return []
 
-    return []
+        return history[-MAX_MEMORY_MESSAGES:]
+
+    except Exception as e:
+
+        print("MEMORY LOAD ERROR:", e)
+
+        return []
 
 
 def save_history(history):
 
-    history = history[
-        -MAX_MEMORY_MESSAGES:
-    ]
+    history = history[-MAX_MEMORY_MESSAGES:]
 
     try:
 
@@ -185,10 +179,7 @@ def save_history(history):
 
     except Exception as e:
 
-        print(
-            "MEMORY SAVE ERROR:",
-            e
-        )
+        print("MEMORY SAVE ERROR:", e)
 
     return history
 
@@ -237,7 +228,6 @@ os.makedirs(
 def load_rag():
 
     if not os.path.exists(RAG_FILE):
-
         return []
 
     try:
@@ -251,46 +241,31 @@ def load_rag():
             data = json.load(f)
 
         if not isinstance(data, list):
-
             return []
 
         return data
 
     except Exception as e:
 
-        print(
-            "RAG LOAD ERROR:",
-            e
-        )
+        print("RAG LOAD ERROR:", e)
 
         return []
 
 
 def save_rag(data):
 
-    try:
+    with open(
+        RAG_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
 
-        with open(
-            RAG_FILE,
-            "w",
-            encoding="utf-8"
-        ) as f:
-
-            json.dump(
-                data,
-                f,
-                indent=2,
-                ensure_ascii=False
-            )
-
-    except Exception as e:
-
-        print(
-            "RAG SAVE ERROR:",
-            e
+        json.dump(
+            data,
+            f,
+            indent=2,
+            ensure_ascii=False
         )
-
-        raise
 
 
 rag_documents = load_rag()
@@ -312,9 +287,7 @@ print(
 # =========================================================
 
 CHUNK_SIZE = 900
-
 CHUNK_OVERLAP = 150
-
 RAG_TOP_K = 5
 
 
@@ -393,7 +366,6 @@ def create_chunks(
     ).strip()
 
     if not text:
-
         return []
 
     chunks = []
@@ -401,7 +373,6 @@ def create_chunks(
     start = 0
 
     text_length = len(text)
-
 
     while start < text_length:
 
@@ -414,7 +385,6 @@ def create_chunks(
             start:end
         ].strip()
 
-
         if chunk:
 
             chunks.append(
@@ -424,40 +394,30 @@ def create_chunks(
                 }
             )
 
-
         if end >= text_length:
-
             break
-
 
         next_start = (
             end - CHUNK_OVERLAP
         )
 
-
         if next_start <= start:
-
             next_start = end
 
-
         start = next_start
-
 
     return chunks
 
 
 # =========================================================
-# CHECK IF DOCUMENT ALREADY EXISTS
+# CHECK DOCUMENT
 # =========================================================
 
 def document_exists(filename):
 
     for document in rag_documents:
 
-        if document.get(
-            "source"
-        ) == filename:
-
+        if document.get("source") == filename:
             return True
 
     return False
@@ -471,20 +431,14 @@ def search_rag(query):
 
     if not rag_documents:
 
-        print(
-            "RAG database is empty."
-        )
+        print("RAG database is empty.")
 
         return {
             "context": "",
             "sources": []
         }
 
-
-    query_words = tokenize(
-        query
-    )
-
+    query_words = tokenize(query)
 
     if not query_words:
 
@@ -492,7 +446,6 @@ def search_rag(query):
             "context": "",
             "sources": []
         }
-
 
     normalized_query = re.sub(
         r"\s+",
@@ -507,7 +460,6 @@ def search_rag(query):
 
     document_frequency = {}
 
-
     for document in rag_documents:
 
         words = set(
@@ -519,15 +471,13 @@ def search_rag(query):
             )
         )
 
-
         for word in words:
 
             document_frequency[word] = (
                 document_frequency.get(
                     word,
                     0
-                )
-                + 1
+                ) + 1
             )
 
 
@@ -542,7 +492,6 @@ def search_rag(query):
 
     scored_documents = []
 
-
     for document in rag_documents:
 
         text = document.get(
@@ -550,24 +499,15 @@ def search_rag(query):
             ""
         )
 
-
         if not text:
-
             continue
 
-
-        words = tokenize(
-            text
-        )
-
+        words = tokenize(text)
 
         if not words:
-
             continue
 
-
         word_counts = {}
-
 
         for word in words:
 
@@ -575,10 +515,8 @@ def search_rag(query):
                 word_counts.get(
                     word,
                     0
-                )
-                + 1
+                ) + 1
             )
-
 
         score = 0.0
 
@@ -590,31 +528,25 @@ def search_rag(query):
         for query_word in query_words:
 
             if query_word not in word_counts:
-
                 continue
-
 
             term_frequency = (
                 word_counts[query_word]
                 / len(words)
             )
 
-
             df = document_frequency.get(
                 query_word,
                 0
             )
-
 
             idf = math.log(
                 (total_documents + 1)
                 / (df + 1)
             ) + 1
 
-
             score += (
-                term_frequency
-                * idf
+                term_frequency * idf
             )
 
 
@@ -634,25 +566,22 @@ def search_rag(query):
         # QUERY COVERAGE BONUS
         # -------------------------------------------------
 
+        unique_query_words = set(
+            query_words
+        )
+
         matched_words = 0
 
-
-        for query_word in set(
-            query_words
-        ):
+        for query_word in unique_query_words:
 
             if query_word in word_counts:
-
                 matched_words += 1
 
-
-        if query_words:
+        if unique_query_words:
 
             coverage = (
                 matched_words
-                / len(
-                    set(query_words)
-                )
+                / len(unique_query_words)
             )
 
             score += (
@@ -684,11 +613,8 @@ def search_rag(query):
     # TOP RESULTS
     # -----------------------------------------------------
 
-    top_documents = [
-        item
-        for item in scored_documents[
-            :RAG_TOP_K
-        ]
+    top_documents = scored_documents[
+        :RAG_TOP_K
     ]
 
 
@@ -713,7 +639,6 @@ def search_rag(query):
         "=== LOCAL RAG SEARCH RESULTS ==="
     )
 
-
     context_parts = []
 
     sources = []
@@ -728,18 +653,15 @@ def search_rag(query):
 
         document = item[1]
 
-
         source = document.get(
             "source",
             "Unknown document"
         )
 
-
         page = document.get(
             "page",
             "Unknown"
         )
-
 
         text = document.get(
             "text",
@@ -751,23 +673,19 @@ def search_rag(query):
             "--------------------------------"
         )
 
-
         print(
             f"Result {rank}"
         )
-
 
         print(
             "Source:",
             source
         )
 
-
         print(
             "Page:",
             page
         )
-
 
         print(
             "Score:",
@@ -777,10 +695,7 @@ def search_rag(query):
             )
         )
 
-
-        print(
-            text
-        )
+        print(text)
 
 
         context_parts.append(
@@ -824,7 +739,6 @@ def search_rag(query):
 def home():
 
     return {
-
         "message":
             "AI Chatbot backend is running!",
 
@@ -856,8 +770,377 @@ def home():
             True,
 
         "upload":
-            True
+            True,
 
+        "chat":
+            True
+    }
+
+
+# =========================================================
+# CHAT
+# =========================================================
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+
+    global conversation_history
+
+
+    print()
+    print("================================")
+    print("NEW CHAT REQUEST")
+    print("================================")
+
+
+    user_message = request.message.strip()
+
+
+    if not user_message:
+
+        return {
+            "reply":
+                "Please enter a message."
+        }
+
+
+    print(
+        "User:",
+        user_message
+    )
+
+
+    # -----------------------------------------------------
+    # CHECK OPENAI
+    # -----------------------------------------------------
+
+    if openai_client is None:
+
+        return {
+            "reply":
+                (
+                    "⚠️ OpenAI API key is not configured "
+                    "on the backend."
+                )
+        }
+
+
+    # -----------------------------------------------------
+    # SEARCH RAG
+    # -----------------------------------------------------
+
+    rag_result = search_rag(
+        user_message
+    )
+
+    rag_context = rag_result[
+        "context"
+    ]
+
+    sources = rag_result[
+        "sources"
+    ]
+
+
+    # -----------------------------------------------------
+    # BUILD USER MESSAGE
+    # -----------------------------------------------------
+
+    if rag_context:
+
+        user_content = f"""
+User question:
+
+{user_message}
+
+Relevant information from uploaded documents:
+
+{rag_context}
+
+Use the document information when it is relevant.
+If the document information does not answer the
+question, you may use your general knowledge.
+"""
+
+    else:
+
+        user_content = user_message
+
+
+    # -----------------------------------------------------
+    # BUILD OPENAI MESSAGES
+    # -----------------------------------------------------
+
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        }
+    ]
+
+
+    # Add previous conversation memory
+
+    for item in conversation_history:
+
+        if not isinstance(
+            item,
+            dict
+        ):
+            continue
+
+        role = item.get(
+            "role"
+        )
+
+        content = item.get(
+            "content"
+        )
+
+
+        if role in (
+            "user",
+            "assistant"
+        ) and content:
+
+            messages.append(
+                {
+                    "role": role,
+                    "content": content
+                }
+            )
+
+
+    # Add current message
+
+    messages.append(
+        {
+            "role": "user",
+            "content": user_content
+        }
+    )
+
+
+    # -----------------------------------------------------
+    # OPENAI REQUEST
+    # -----------------------------------------------------
+
+    response = None
+
+    last_error = None
+
+
+    for attempt in range(3):
+
+        try:
+
+            print(
+                f"OpenAI request attempt {attempt + 1}"
+            )
+
+
+            response = (
+                openai_client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    messages=messages
+                )
+            )
+
+
+            break
+
+
+        except Exception as e:
+
+            last_error = e
+
+            print(
+                "OPENAI ERROR:",
+                e
+            )
+
+
+            if attempt < 2:
+
+                wait_time = (
+                    2 ** attempt
+                )
+
+                print(
+                    f"Retrying in {wait_time} seconds..."
+                )
+
+                time.sleep(
+                    wait_time
+                )
+
+
+    # -----------------------------------------------------
+    # OPENAI FAILED
+    # -----------------------------------------------------
+
+    if response is None:
+
+        print(
+            "OPENAI FINAL ERROR:",
+            last_error
+        )
+
+
+        return {
+            "reply":
+                (
+                    "⚠️ I could not get a response "
+                    "from OpenAI.\n\n"
+                    f"Error: {str(last_error)}"
+                )
+        }
+
+
+    # -----------------------------------------------------
+    # EXTRACT RESPONSE
+    # -----------------------------------------------------
+
+    try:
+
+        assistant_message = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
+
+    except Exception as e:
+
+        print(
+            "RESPONSE PARSING ERROR:",
+            e
+        )
+
+        return {
+            "reply":
+                "⚠️ OpenAI returned an invalid response."
+        }
+
+
+    if not assistant_message:
+
+        assistant_message = (
+            "⚠️ The AI returned an empty response."
+        )
+
+
+    assistant_message = (
+        assistant_message.strip()
+    )
+
+
+    # -----------------------------------------------------
+    # SAVE MEMORY
+    # -----------------------------------------------------
+
+    conversation_history.append(
+        {
+            "role": "user",
+            "content": user_message
+        }
+    )
+
+
+    conversation_history.append(
+        {
+            "role": "assistant",
+            "content": assistant_message
+        }
+    )
+
+
+    conversation_history = save_history(
+        conversation_history
+    )
+
+
+    # -----------------------------------------------------
+    # ADD SOURCES
+    # -----------------------------------------------------
+
+    final_reply = assistant_message
+
+
+    if sources:
+
+        source_lines = []
+
+        for source in sources:
+
+            source_name = source.get(
+                "source",
+                "Unknown"
+            )
+
+            page = source.get(
+                "page",
+                "Unknown"
+            )
+
+            source_lines.append(
+                f"• {source_name} — Page {page}"
+            )
+
+
+        final_reply += (
+            "\n\n📚 Sources:\n"
+            + "\n".join(source_lines)
+        )
+
+
+    # -----------------------------------------------------
+    # RETURN
+    # -----------------------------------------------------
+
+    print()
+    print(
+        "AI:",
+        assistant_message
+    )
+
+    print(
+        "Sources:",
+        sources
+    )
+
+
+    return {
+        "reply": final_reply,
+        "sources": sources
+    }
+
+
+# =========================================================
+# RESET MEMORY
+# =========================================================
+
+@app.post("/reset")
+def reset_memory():
+
+    global conversation_history
+
+    conversation_history = []
+
+    save_history(
+        conversation_history
+    )
+
+    print(
+        "=== MEMORY RESET ==="
+    )
+
+    return {
+        "success":
+            True,
+
+        "message":
+            "Conversation memory has been reset."
     }
 
 
@@ -878,11 +1161,6 @@ async def upload_document(
     print("NEW PDF UPLOAD")
     print("================================")
 
-    print(
-        "Filename:",
-        file.filename
-    )
-
 
     # -----------------------------------------------------
     # CHECK FILENAME
@@ -891,32 +1169,41 @@ async def upload_document(
     if not file.filename:
 
         return {
-
             "success":
                 False,
 
             "message":
                 "No filename provided."
-
         }
+
+
+    # Use only the filename, not any possible path
+
+    filename = os.path.basename(
+        file.filename
+    )
+
+
+    print(
+        "Filename:",
+        filename
+    )
 
 
     # -----------------------------------------------------
     # CHECK PDF
     # -----------------------------------------------------
 
-    if not file.filename.lower().endswith(
+    if not filename.lower().endswith(
         ".pdf"
     ):
 
         return {
-
             "success":
                 False,
 
             "message":
                 "Only PDF files are supported."
-
         }
 
 
@@ -925,17 +1212,15 @@ async def upload_document(
     # -----------------------------------------------------
 
     if document_exists(
-        file.filename
+        filename
     ):
 
         return {
-
             "success":
                 False,
 
             "message":
                 "This PDF is already uploaded."
-
         }
 
 
@@ -955,65 +1240,22 @@ async def upload_document(
         )
 
         return {
-
             "success":
                 False,
 
             "message":
                 f"Could not read PDF: {e}"
-
         }
 
 
     if not file_data:
 
         return {
-
             "success":
                 False,
 
             "message":
                 "The uploaded PDF is empty."
-
-        }
-
-
-    # -----------------------------------------------------
-    # SAVE ORIGINAL PDF
-    # -----------------------------------------------------
-
-    pdf_path = os.path.join(
-        DOCUMENTS_DIR,
-        file.filename
-    )
-
-
-    try:
-
-        with open(
-            pdf_path,
-            "wb"
-        ) as f:
-
-            f.write(
-                file_data
-            )
-
-    except Exception as e:
-
-        print(
-            "PDF SAVE ERROR:",
-            e
-        )
-
-        return {
-
-            "success":
-                False,
-
-            "message":
-                f"Could not save PDF: {e}"
-
         }
 
 
@@ -1068,7 +1310,6 @@ async def upload_document(
         if not all_chunks:
 
             return {
-
                 "success":
                     False,
 
@@ -1078,7 +1319,6 @@ async def upload_document(
                         "If this is a scanned PDF, OCR will be "
                         "needed later."
                     )
-
             }
 
 
@@ -1090,13 +1330,48 @@ async def upload_document(
         )
 
         return {
-
             "success":
                 False,
 
             "message":
                 f"Could not extract PDF text: {e}"
+        }
 
+
+    # -----------------------------------------------------
+    # SAVE ORIGINAL PDF
+    # -----------------------------------------------------
+
+    pdf_path = os.path.join(
+        DOCUMENTS_DIR,
+        filename
+    )
+
+
+    try:
+
+        with open(
+            pdf_path,
+            "wb"
+        ) as f:
+
+            f.write(
+                file_data
+            )
+
+    except Exception as e:
+
+        print(
+            "PDF SAVE ERROR:",
+            e
+        )
+
+        return {
+            "success":
+                False,
+
+            "message":
+                f"Could not save PDF: {e}"
         }
 
 
@@ -1109,18 +1384,18 @@ async def upload_document(
 
     for chunk in all_chunks:
 
-        new_documents.append({
+        new_documents.append(
+            {
+                "source":
+                    filename,
 
-            "source":
-                file.filename,
+                "page":
+                    chunk["page"],
 
-            "page":
-                chunk["page"],
-
-            "text":
-                chunk["text"]
-
-        })
+                "text":
+                    chunk["text"]
+            }
+        )
 
 
     # -----------------------------------------------------
@@ -1132,7 +1407,6 @@ async def upload_document(
         rag_documents.extend(
             new_documents
         )
-
 
         save_rag(
             rag_documents
@@ -1147,13 +1421,11 @@ async def upload_document(
         )
 
         return {
-
             "success":
                 False,
 
             "message":
                 f"Could not save document to RAG: {e}"
-
         }
 
 
@@ -1169,7 +1441,7 @@ async def upload_document(
 
     print(
         "Filename:",
-        file.filename
+        filename
     )
 
 
@@ -1191,12 +1463,22 @@ async def upload_document(
     )
 
 
-
-
     return {
-    "success": True,
-    "message": "PDF uploaded successfully.",
-    "filename": file.filename,
-    "chunks_added": len(new_documents),
-    "total_rag_chunks": len(rag_documents)
-}
+        "success":
+            True,
+
+        "message":
+            "PDF uploaded successfully.",
+
+        "filename":
+            filename,
+
+        "pages":
+            len(reader.pages),
+
+        "chunks_added":
+            len(new_documents),
+
+        "total_rag_chunks":
+            len(rag_documents)
+    }
