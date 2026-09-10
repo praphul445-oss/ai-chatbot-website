@@ -5,4 +5,4 @@ chromadb
 sentence-transformers
 pypdf
 python-multipart
-google-genai
+openai

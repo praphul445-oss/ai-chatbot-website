@@ -11,24 +11,23 @@ import chromadb
 from chromadb.utils import embedding_functions
 from pypdf import PdfReader
 
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
 
-# ==========================================
+# =========================================
 # FASTAPI APP
-# ==========================================
+# =========================================
 
 app = FastAPI(
     title="My AI Chatbot API",
-    description="AI Chatbot with Gemini, Memory, RAG and PDF Upload",
-    version="1.0"
+    description="AI Chatbot with OpenAI, Memory, RAG and PDF Upload",
+    version="2.0"
 )
 
 
-# ==========================================
+# =========================================
 # CORS
-# ==========================================
+# =========================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,42 +38,44 @@ app.add_middleware(
 )
 
 
-# ==========================================
+# =========================================
 # CHAT REQUEST
-# ==========================================
+# =========================================
 
 class ChatRequest(BaseModel):
     message: str
 
 
-# ==========================================
-# GEMINI CONFIGURATION
-# ==========================================
+# =========================================
+# OPENAI CONFIGURATION
+# =========================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-GEMINI_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.8-flash"
+OPENAI_MODEL = os.getenv(
+    "OPENAI_MODEL",
+    "gpt-5.6-luna"
 )
 
-if GEMINI_API_KEY:
-    gemini_client = genai.Client(
-        api_key=GEMINI_API_KEY
+if OPENAI_API_KEY:
+
+    openai_client = OpenAI(
+        api_key=OPENAI_API_KEY
     )
 
-    print("=== GEMINI CONNECTED ===")
-    print("Gemini model:", GEMINI_MODEL)
+    print("=== OPENAI CONNECTED ===")
+    print("OpenAI model:", OPENAI_MODEL)
 
 else:
-    gemini_client = None
 
-    print("=== WARNING: GEMINI_API_KEY NOT SET ===")
+    openai_client = None
+
+    print("=== WARNING: OPENAI_API_KEY NOT SET ===")
 
 
-# ==========================================
-# MEMORY
-# ==========================================
+# =========================================
+# PROJECT PATHS
+# =========================================
 
 BASE_DIR = os.path.dirname(
     os.path.abspath(__file__)
@@ -88,22 +89,26 @@ MEMORY_FILE = os.path.join(
 MAX_MEMORY_MESSAGES = 10
 
 
+# =========================================
+# SYSTEM PROMPT
+# =========================================
+
 SYSTEM_PROMPT = """
 You are a helpful AI chatbot.
 
-You must remember and use information the user tells you during
-this conversation.
+You must remember and use information the user tells you
+during this conversation.
 
-If the user tells you their name, remember it and answer correctly
-when they later ask for their name.
+If the user tells you their name, remember it and answer
+correctly when they later ask for their name.
 
-Do not say that you cannot remember previous messages if those
-messages are included in the conversation.
+Do not say that you cannot remember previous messages if
+those messages are included in the conversation.
 
 You also have access to a local RAG knowledge base.
 
-When relevant information from the RAG knowledge base is provided,
-use it to answer the user's question.
+When relevant information from the RAG knowledge base is
+provided, use it to answer the user's question.
 
 If the knowledge base does not contain relevant information,
 answer normally using your general knowledge.
@@ -111,6 +116,10 @@ answer normally using your general knowledge.
 Be helpful, clear and accurate.
 """
 
+
+# =========================================
+# MEMORY
+# =========================================
 
 def load_history():
 
@@ -164,13 +173,14 @@ def save_history(history):
 
 conversation_history = load_history()
 
+
 print("=== STARTUP MEMORY ===")
 print(conversation_history)
 
 
-# ==========================================
+# =========================================
 # RAG CONFIGURATION
-# ==========================================
+# =========================================
 
 RAG_DATABASE_DIR = os.path.join(
     BASE_DIR,
@@ -218,7 +228,6 @@ try:
         collection.count()
     )
 
-
 except Exception as e:
 
     print("RAG ERROR:", e)
@@ -227,9 +236,9 @@ except Exception as e:
     collection = None
 
 
-# ==========================================
+# =========================================
 # RAG SEARCH
-# ==========================================
+# =========================================
 
 def search_rag(query):
 
@@ -280,7 +289,10 @@ def search_rag(query):
 
         for document in documents:
 
-            print("--------------------------------")
+            print(
+                "--------------------------------"
+            )
+
             print(document)
 
 
@@ -297,9 +309,9 @@ def search_rag(query):
         return ""
 
 
-# ==========================================
+# =========================================
 # HOME
-# ==========================================
+# =========================================
 
 @app.get("/")
 def home():
@@ -310,10 +322,10 @@ def home():
             "AI Chatbot backend is running!",
 
         "ai":
-            "Google Gemini",
+            "OpenAI",
 
         "model":
-            GEMINI_MODEL,
+            OPENAI_MODEL,
 
         "rag":
             collection is not None,
@@ -323,9 +335,9 @@ def home():
     }
 
 
-# ==========================================
+# =========================================
 # CHAT
-# ==========================================
+# =========================================
 
 @app.post("/chat")
 def chat(request: ChatRequest):
@@ -333,24 +345,21 @@ def chat(request: ChatRequest):
     global conversation_history
 
 
-    # --------------------------------------
-    # CHECK GEMINI
-    # --------------------------------------
-
-    if gemini_client is None:
+    if openai_client is None:
 
         return {
+
             "reply":
-                "Gemini API key is not configured on the server."
+                "OpenAI API key is not configured on the server."
         }
 
 
     user_message = request.message
 
 
-    # --------------------------------------
-    # RAG SEARCH
-    # --------------------------------------
+    # =====================================
+    # SEARCH RAG
+    # =====================================
 
     print()
     print("================================")
@@ -363,68 +372,47 @@ def chat(request: ChatRequest):
     )
 
 
-    # --------------------------------------
-    # ADD USER MESSAGE TO MEMORY
-    # --------------------------------------
+    # =====================================
+    # SAVE USER MESSAGE
+    # =====================================
 
     conversation_history.append({
 
-        "role": "user",
+        "role":
+            "user",
 
-        "content": user_message
+        "content":
+            user_message
     })
 
 
-    # --------------------------------------
-    # BUILD GEMINI CONTENTS
-    # --------------------------------------
+    # =====================================
+    # BUILD OPENAI INPUT
+    # =====================================
 
-    contents = []
+    messages = []
 
 
     for message in conversation_history:
 
-        if message["role"] == "user":
+        messages.append({
 
-            contents.append(
+            "role":
+                message["role"],
 
-                types.Content(
-
-                    role="user",
-
-                    parts=[
-                        types.Part(
-                            text=message["content"]
-                        )
-                    ]
-                )
-            )
+            "content":
+                message["content"]
+        })
 
 
-        elif message["role"] == "assistant":
-
-            contents.append(
-
-                types.Content(
-
-                    role="model",
-
-                    parts=[
-                        types.Part(
-                            text=message["content"]
-                        )
-                    ]
-                )
-            )
-
-
-    # --------------------------------------
+    # =====================================
     # ADD RAG CONTEXT
-    # --------------------------------------
+    # =====================================
 
     if rag_context:
 
         rag_instruction = f"""
+
 Relevant information from the local knowledge base:
 
 ---------------- RAG CONTEXT ----------------
@@ -433,28 +421,27 @@ Relevant information from the local knowledge base:
 
 -------------- END RAG CONTEXT --------------
 
-Use this information when it is relevant to the user's question.
+Use this information when it is relevant
+to the user's question.
 
-Do not claim that this information came from the internet.
+Do not claim that this information came
+from the internet.
 """
 
 
-        contents[-1].parts[0].text = (
-
-            contents[-1].parts[0].text
-
+        messages[-1]["content"] = (
+            messages[-1]["content"]
             + rag_instruction
         )
 
 
-    # --------------------------------------
-    # SEND REQUEST TO GEMINI
-    # WITH AUTOMATIC RETRIES
-    # --------------------------------------
+    # =====================================
+    # SEND TO OPENAI
+    # =====================================
 
     print()
     print("================================")
-    print("SENDING REQUEST TO GEMINI")
+    print("SENDING REQUEST TO OPENAI")
     print("================================")
 
 
@@ -463,42 +450,33 @@ Do not claim that this information came from the internet.
         response = None
 
 
-        # Try Gemini up to 3 times
         for attempt in range(3):
 
             try:
 
                 print(
-                    f"GEMINI ATTEMPT {attempt + 1}/3"
+                    f"OPENAI ATTEMPT {attempt + 1}/3"
                 )
 
 
                 response = (
-                    gemini_client
-                    .models
-                    .generate_content(
+                    openai_client
+                    .responses
+                    .create(
 
-                        model=GEMINI_MODEL,
+                        model=OPENAI_MODEL,
 
-                        contents=contents,
+                        instructions=SYSTEM_PROMPT,
 
-                        config=(
-                            types
-                            .GenerateContentConfig(
+                        input=messages,
 
-                                system_instruction=
-                                    SYSTEM_PROMPT,
-
-                                max_output_tokens=1000
-                            )
-                        )
+                        max_output_tokens=1000
                     )
                 )
 
 
-                # Request succeeded
                 print(
-                    "GEMINI REQUEST SUCCESSFUL"
+                    "OPENAI REQUEST SUCCESSFUL"
                 )
 
                 break
@@ -507,20 +485,19 @@ Do not claim that this information came from the internet.
             except Exception as e:
 
                 print(
-                    f"GEMINI ATTEMPT {attempt + 1} FAILED:",
+                    f"OPENAI ATTEMPT "
+                    f"{attempt + 1} FAILED:",
                     e
                 )
 
-
-                # If this wasn't the final attempt,
-                # wait and try again.
 
                 if attempt < 2:
 
                     wait_time = 2 ** attempt
 
                     print(
-                        f"Retrying Gemini in {wait_time} seconds..."
+                        f"Retrying OpenAI "
+                        f"in {wait_time} seconds..."
                     )
 
                     time.sleep(
@@ -529,27 +506,19 @@ Do not claim that this information came from the internet.
 
                 else:
 
-                    # All attempts failed
                     raise
 
 
-        # ----------------------------------
-        # GET GEMINI RESPONSE
-        # ----------------------------------
-
-        ai_response = response.text
+        ai_response = response.output_text
 
 
     except Exception as e:
 
         print(
-            "GEMINI ERROR:",
+            "OPENAI ERROR:",
             e
         )
 
-
-        # Remove the user message because
-        # Gemini did not successfully answer.
 
         if conversation_history:
 
@@ -559,19 +528,21 @@ Do not claim that this information came from the internet.
         return {
 
             "reply":
-                "Sorry, I could not connect to the Gemini AI service. Please try again."
+                "Sorry, I could not connect to the OpenAI AI service. Please try again."
         }
 
 
-    # --------------------------------------
-    # SAVE AI RESPONSE TO MEMORY
-    # --------------------------------------
+    # =====================================
+    # SAVE AI RESPONSE
+    # =====================================
 
     conversation_history.append({
 
-        "role": "assistant",
+        "role":
+            "assistant",
 
-        "content": ai_response
+        "content":
+            ai_response
     })
 
 
@@ -580,46 +551,35 @@ Do not claim that this information came from the internet.
     )
 
 
-    # --------------------------------------
-    # PRINT RESPONSE
-    # --------------------------------------
-
     print()
     print("================================")
-    print("GEMINI RESPONSE")
+    print("OPENAI RESPONSE")
     print("================================")
 
     print(ai_response)
 
 
-    # --------------------------------------
-    # RETURN TO WEBSITE
-    # --------------------------------------
-
     return {
 
-        "reply": ai_response
-
+        "reply":
+            ai_response
     }
 
 
-# ==========================================
+# =========================================
 # RESET MEMORY
-# ==========================================
+# =========================================
 
 @app.post("/reset")
 def reset():
 
     global conversation_history
 
-
     conversation_history = []
-
 
     save_history(
         conversation_history
     )
-
 
     return {
 
@@ -628,39 +588,35 @@ def reset():
     }
 
 
-# ==========================================
-# PDF UPLOAD / RAG
-# ==========================================
+# =========================================
+# PDF UPLOAD
+# =========================================
 
 @app.post("/upload")
 async def upload_pdf(
     file: UploadFile = File(...)
 ):
 
-    # --------------------------------------
-    # CHECK FILE TYPE
-    # --------------------------------------
-
-    if not file.filename.lower().endswith(".pdf"):
+    if not file.filename.lower().endswith(
+        ".pdf"
+    ):
 
         return {
 
-            "success": False,
+            "success":
+                False,
 
             "message":
                 "Only PDF files are supported."
         }
 
 
-    # --------------------------------------
-    # CHECK RAG
-    # --------------------------------------
-
     if collection is None:
 
         return {
 
-            "success": False,
+            "success":
+                False,
 
             "message":
                 "RAG database is not available."
@@ -669,21 +625,19 @@ async def upload_pdf(
 
     try:
 
-        # ----------------------------------
+        # =================================
         # READ PDF
-        # ----------------------------------
+        # =================================
 
         file_bytes = await file.read()
 
 
-        # ----------------------------------
+        # =================================
         # SAVE PDF
-        # ----------------------------------
+        # =================================
 
         pdf_path = os.path.join(
-
             DOCUMENTS_DIR,
-
             file.filename
         )
 
@@ -693,12 +647,14 @@ async def upload_pdf(
             "wb"
         ) as f:
 
-            f.write(file_bytes)
+            f.write(
+                file_bytes
+            )
 
 
-        # ----------------------------------
+        # =================================
         # EXTRACT TEXT
-        # ----------------------------------
+        # =================================
 
         pdf_reader = PdfReader(
             BytesIO(file_bytes)
@@ -716,29 +672,25 @@ async def upload_pdf(
             if text:
 
                 full_text += (
-                    text
-                    + "\n"
+                    text + "\n"
                 )
 
-
-        # ----------------------------------
-        # CHECK TEXT
-        # ----------------------------------
 
         if not full_text.strip():
 
             return {
 
-                "success": False,
+                "success":
+                    False,
 
                 "message":
                     "Could not extract text from PDF."
             }
 
 
-        # ----------------------------------
-        # SPLIT INTO CHUNKS
-        # ----------------------------------
+        # =================================
+        # CREATE CHUNKS
+        # =================================
 
         chunk_size = 1000
 
@@ -763,9 +715,9 @@ async def upload_pdf(
                 )
 
 
-        # ----------------------------------
-        # CREATE UNIQUE IDS
-        # ----------------------------------
+        # =================================
+        # ADD TO CHROMADB
+        # =================================
 
         start_id = collection.count()
 
@@ -780,10 +732,6 @@ async def upload_pdf(
         ]
 
 
-        # ----------------------------------
-        # METADATA
-        # ----------------------------------
-
         metadatas = [
 
             {
@@ -794,10 +742,6 @@ async def upload_pdf(
             for _ in chunks
         ]
 
-
-        # ----------------------------------
-        # ADD TO CHROMADB
-        # ----------------------------------
 
         collection.add(
 
@@ -811,10 +755,6 @@ async def upload_pdf(
 
         total_chunks = collection.count()
 
-
-        # ----------------------------------
-        # PRINT UPLOAD INFO
-        # ----------------------------------
 
         print()
         print("================================")
@@ -837,13 +777,10 @@ async def upload_pdf(
         )
 
 
-        # ----------------------------------
-        # RETURN SUCCESS
-        # ----------------------------------
-
         return {
 
-            "success": True,
+            "success":
+                True,
 
             "message":
                 "Document uploaded successfully",
@@ -869,7 +806,8 @@ async def upload_pdf(
 
         return {
 
-            "success": False,
+            "success":
+                False,
 
             "message":
                 str(e)
