@@ -4,29 +4,29 @@ from pydantic import BaseModel
 
 import json
 import os
+import re
+import math
 import time
 from io import BytesIO
 
-import chromadb
 from pypdf import PdfReader
-
 from openai import OpenAI
 
 
-# =========================================
-# FASTAPI APP
-# =========================================
+# =========================================================
+# FASTAPI
+# =========================================================
 
 app = FastAPI(
     title="My AI Chatbot API",
-    description="AI Chatbot with OpenAI, Memory, RAG and PDF Upload",
-    version="3.0"
+    description="AI Chatbot with OpenAI, Memory and Local RAG",
+    version="4.0"
 )
 
 
-# =========================================
+# =========================================================
 # CORS
-# =========================================
+# =========================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,17 +37,17 @@ app.add_middleware(
 )
 
 
-# =========================================
-# CHAT REQUEST
-# =========================================
+# =========================================================
+# REQUEST MODEL
+# =========================================================
 
 class ChatRequest(BaseModel):
     message: str
 
 
-# =========================================
-# OPENAI CONFIGURATION
-# =========================================
+# =========================================================
+# OPENAI
+# =========================================================
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -56,38 +56,29 @@ OPENAI_MODEL = os.getenv(
     "gpt-5.6-luna"
 )
 
-EMBEDDING_MODEL = os.getenv(
-    "EMBEDDING_MODEL",
-    "text-embedding-3-small"
-)
-
-EMBEDDING_DIMENSIONS = 512
-
 
 if OPENAI_API_KEY:
-
-    openai_client = OpenAI(
-        api_key=OPENAI_API_KEY
-    )
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
     print("=== OPENAI CONNECTED ===")
     print("OpenAI model:", OPENAI_MODEL)
-    print("Embedding model:", EMBEDDING_MODEL)
 
 else:
-
     openai_client = None
 
     print("=== WARNING: OPENAI_API_KEY NOT SET ===")
 
 
-# =========================================
-# PROJECT PATHS
-# =========================================
+# =========================================================
+# BASE DIRECTORY
+# =========================================================
 
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# =========================================================
+# MEMORY
+# =========================================================
 
 MEMORY_FILE = os.path.join(
     BASE_DIR,
@@ -96,10 +87,6 @@ MEMORY_FILE = os.path.join(
 
 MAX_MEMORY_MESSAGES = 10
 
-
-# =========================================
-# SYSTEM PROMPT
-# =========================================
 
 SYSTEM_PROMPT = """
 You are a helpful AI chatbot.
@@ -110,10 +97,7 @@ during this conversation.
 If the user tells you their name, remember it and answer
 correctly when they later ask for their name.
 
-Do not say that you cannot remember previous messages if
-those messages are included in the conversation.
-
-You also have access to a RAG knowledge base.
+You also have access to a local RAG knowledge base.
 
 When relevant information from the RAG knowledge base is
 provided, use it to answer the user's question.
@@ -124,10 +108,6 @@ answer normally using your general knowledge.
 Be helpful, clear and accurate.
 """
 
-
-# =========================================
-# MEMORY
-# =========================================
 
 def load_history():
 
@@ -143,9 +123,6 @@ def load_history():
 
                 history = json.load(f)
 
-            if not history:
-                return []
-
             return history[-MAX_MEMORY_MESSAGES:]
 
         except Exception as e:
@@ -159,9 +136,7 @@ def load_history():
 
 def save_history(history):
 
-    trimmed_history = history[
-        -MAX_MEMORY_MESSAGES:
-    ]
+    history = history[-MAX_MEMORY_MESSAGES:]
 
     with open(
         MEMORY_FILE,
@@ -170,34 +145,25 @@ def save_history(history):
     ) as f:
 
         json.dump(
-            trimmed_history,
+            history,
             f,
             indent=2,
             ensure_ascii=False
         )
 
-    return trimmed_history
+    return history
 
 
 conversation_history = load_history()
+
 
 print("=== STARTUP MEMORY ===")
 print(conversation_history)
 
 
-# =========================================
-# RAG CONFIGURATION
-# =========================================
-
-# IMPORTANT:
-# We use a new database directory because the old
-# database used SentenceTransformer embeddings.
-
-RAG_DATABASE_DIR = os.path.join(
-    BASE_DIR,
-    "rag",
-    "chroma_db_openai"
-)
+# =========================================================
+# LOCAL RAG DATABASE
+# =========================================================
 
 DOCUMENTS_DIR = os.path.join(
     BASE_DIR,
@@ -205,179 +171,297 @@ DOCUMENTS_DIR = os.path.join(
     "documents"
 )
 
+RAG_FILE = os.path.join(
+    BASE_DIR,
+    "rag",
+    "local_rag.json"
+)
+
+
 os.makedirs(
     DOCUMENTS_DIR,
     exist_ok=True
 )
 
-
-print("=== STARTING RAG ===")
-print("RAG database:", RAG_DATABASE_DIR)
-
-
-try:
-
-    chroma_client = chromadb.PersistentClient(
-        path=RAG_DATABASE_DIR
-    )
-
-    collection = chroma_client.get_or_create_collection(
-        name="knowledge_openai"
-    )
-
-    print("=== RAG DATABASE CONNECTED ===")
-
-    print(
-        "Total RAG chunks:",
-        collection.count()
-    )
-
-except Exception as e:
-
-    print("RAG ERROR:", e)
-
-    chroma_client = None
-    collection = None
+os.makedirs(
+    os.path.dirname(RAG_FILE),
+    exist_ok=True
+)
 
 
-# =========================================
-# CREATE EMBEDDINGS
-# =========================================
+def load_rag():
 
-def create_embeddings(texts):
+    if not os.path.exists(RAG_FILE):
 
-    if openai_client is None:
-        raise RuntimeError(
-            "OpenAI API key is not configured."
-        )
-
-    if not texts:
         return []
 
     try:
 
-        response = openai_client.embeddings.create(
-            model=EMBEDDING_MODEL,
-            input=texts,
-            dimensions=EMBEDDING_DIMENSIONS
-        )
+        with open(
+            RAG_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
 
-        embeddings = [
-            item.embedding
-            for item in response.data
-        ]
+            data = json.load(f)
 
-        return embeddings
+        return data
 
     except Exception as e:
 
-        print(
-            "EMBEDDING ERROR:",
-            e
+        print("RAG LOAD ERROR:", e)
+
+        return []
+
+
+def save_rag(data):
+
+    with open(
+        RAG_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            data,
+            f,
+            indent=2,
+            ensure_ascii=False
         )
 
-        raise
+
+rag_documents = load_rag()
 
 
-# =========================================
-# RAG SEARCH
-# =========================================
+print("=== LOCAL RAG STARTED ===")
+print("RAG chunks:", len(rag_documents))
+
+
+# =========================================================
+# TEXT PROCESSING
+# =========================================================
+
+def tokenize(text):
+
+    words = re.findall(
+        r"[a-zA-Z0-9]+",
+        text.lower()
+    )
+
+    stop_words = {
+        "the",
+        "is",
+        "a",
+        "an",
+        "and",
+        "or",
+        "of",
+        "to",
+        "in",
+        "on",
+        "for",
+        "with",
+        "what",
+        "are",
+        "how",
+        "this",
+        "that",
+        "from",
+        "by",
+        "based",
+        "as",
+        "be",
+        "it"
+    }
+
+    return [
+        word
+        for word in words
+        if word not in stop_words
+    ]
+
+
+# =========================================================
+# LOCAL RAG SEARCH
+# =========================================================
 
 def search_rag(query):
 
-    if collection is None:
+    if not rag_documents:
+
+        print("RAG database is empty.")
+
+        return ""
+
+
+    query_words = tokenize(query)
+
+    if not query_words:
+
+        return ""
+
+
+    # -----------------------------------------------------
+    # Document frequency
+    # -----------------------------------------------------
+
+    document_frequency = {}
+
+    for document in rag_documents:
+
+        words = set(
+            tokenize(
+                document["text"]
+            )
+        )
+
+        for word in words:
+
+            document_frequency[word] = (
+                document_frequency.get(word, 0) + 1
+            )
+
+
+    total_documents = len(
+        rag_documents
+    )
+
+
+    # -----------------------------------------------------
+    # Score documents
+    # -----------------------------------------------------
+
+    scored_documents = []
+
+
+    for document in rag_documents:
+
+        words = tokenize(
+            document["text"]
+        )
+
+        if not words:
+            continue
+
+
+        word_counts = {}
+
+        for word in words:
+
+            word_counts[word] = (
+                word_counts.get(word, 0) + 1
+            )
+
+
+        score = 0.0
+
+
+        for query_word in query_words:
+
+            if query_word not in word_counts:
+
+                continue
+
+
+            term_frequency = (
+                word_counts[query_word]
+                / len(words)
+            )
+
+
+            df = document_frequency.get(
+                query_word,
+                0
+            )
+
+
+            idf = math.log(
+                (total_documents + 1)
+                / (df + 1)
+            ) + 1
+
+
+            score += (
+                term_frequency * idf
+            )
+
+
+        if score > 0:
+
+            scored_documents.append(
+                (
+                    score,
+                    document
+                )
+            )
+
+
+    # -----------------------------------------------------
+    # Sort by relevance
+    # -----------------------------------------------------
+
+    scored_documents.sort(
+        key=lambda x: x[0],
+        reverse=True
+    )
+
+
+    # -----------------------------------------------------
+    # Return top 3 chunks
+    # -----------------------------------------------------
+
+    top_documents = [
+        item[1]
+        for item in scored_documents[:3]
+    ]
+
+
+    if not top_documents:
 
         print(
-            "RAG collection unavailable."
+            "RAG: No relevant information found."
         )
 
         return ""
 
 
-    try:
-
-        total = collection.count()
-
-        if total == 0:
-
-            print(
-                "RAG database is empty."
-            )
-
-            return ""
+    print()
+    print("=== LOCAL RAG SEARCH RESULTS ===")
 
 
-        query_embedding = create_embeddings(
-            [query]
-        )[0]
+    result_text = []
 
 
-        results = collection.query(
+    for document in top_documents:
 
-            query_embeddings=[
-                query_embedding
-            ],
-
-            n_results=min(
-                3,
-                total
-            )
-        )
-
-
-        documents = results.get(
-            "documents",
-            [[]]
-        )[0]
-
-
-        if not documents:
-
-            print(
-                "RAG: No relevant information found."
-            )
-
-            return ""
-
-
+        print("--------------------------------")
         print(
-            "=== RAG SEARCH RESULTS ==="
+            "Source:",
+            document["source"]
         )
-
-
-        for document in documents:
-
-            print(
-                "--------------------------------"
-            )
-
-            print(document)
-
-
-        return "\n\n".join(
-            documents
-        )
-
-
-    except Exception as e:
-
         print(
-            "RAG SEARCH ERROR:",
-            e
+            document["text"]
         )
 
-        return ""
+
+        result_text.append(
+            document["text"]
+        )
 
 
-# =========================================
+    return "\n\n".join(
+        result_text
+    )
+
+
+# =========================================================
 # HOME
-# =========================================
+# =========================================================
 
 @app.get("/")
 def home():
 
     return {
-
         "message":
             "AI Chatbot backend is running!",
 
@@ -387,25 +471,23 @@ def home():
         "model":
             OPENAI_MODEL,
 
-        "embedding_model":
-            EMBEDDING_MODEL,
-
         "rag":
-            collection is not None,
+            True,
+
+        "rag_type":
+            "Local TF-IDF-style retrieval",
 
         "rag_chunks":
-            collection.count()
-            if collection is not None
-            else 0,
+            len(rag_documents),
 
         "memory":
             True
     }
 
 
-# =========================================
+# =========================================================
 # CHAT
-# =========================================
+# =========================================================
 
 @app.post("/chat")
 def chat(request: ChatRequest):
@@ -416,22 +498,21 @@ def chat(request: ChatRequest):
     if openai_client is None:
 
         return {
-
             "reply":
-                "OpenAI API key is not configured on the server."
+                "OpenAI API key is not configured."
         }
 
 
     user_message = request.message
 
 
-    # =====================================
-    # SEARCH RAG
-    # =====================================
+    # -----------------------------------------------------
+    # SEARCH LOCAL RAG
+    # -----------------------------------------------------
 
     print()
     print("================================")
-    print("SEARCHING RAG...")
+    print("SEARCHING LOCAL RAG")
     print("================================")
 
 
@@ -440,48 +521,55 @@ def chat(request: ChatRequest):
     )
 
 
-    # =====================================
+    # -----------------------------------------------------
     # SAVE USER MESSAGE
-    # =====================================
+    # -----------------------------------------------------
 
-    conversation_history.append({
-
-        "role":
-            "user",
-
-        "content":
-            user_message
-    })
+    conversation_history.append(
+        {
+            "role": "user",
+            "content": user_message
+        }
+    )
 
 
-    # =====================================
-    # BUILD OPENAI INPUT
-    # =====================================
+    conversation_history = (
+        conversation_history[
+            -MAX_MEMORY_MESSAGES:
+        ]
+    )
+
+
+    # -----------------------------------------------------
+    # BUILD MESSAGES
+    # -----------------------------------------------------
 
     messages = []
 
 
     for message in conversation_history:
 
-        messages.append({
+        messages.append(
+            {
+                "role":
+                    message["role"],
 
-            "role":
-                message["role"],
-
-            "content":
-                message["content"]
-        })
+                "content":
+                    message["content"]
+            }
+        )
 
 
-    # =====================================
+    # -----------------------------------------------------
     # ADD RAG CONTEXT
-    # =====================================
+    # -----------------------------------------------------
 
     if rag_context:
 
         rag_instruction = f"""
 
-Relevant information from the knowledge base:
+Relevant information from the local
+knowledge base:
 
 ---------------- RAG CONTEXT ----------------
 
@@ -498,16 +586,14 @@ from the internet.
 
 
         messages[-1]["content"] = (
-
             messages[-1]["content"]
-
             + rag_instruction
         )
 
 
-    # =====================================
-    # SEND TO OPENAI
-    # =====================================
+    # -----------------------------------------------------
+    # OPENAI
+    # -----------------------------------------------------
 
     print()
     print("================================")
@@ -525,22 +611,18 @@ from the internet.
             try:
 
                 print(
-                    f"OPENAI ATTEMPT {attempt + 1}/3"
+                    f"OPENAI ATTEMPT "
+                    f"{attempt + 1}/3"
                 )
 
 
                 response = (
-
                     openai_client
                     .responses
                     .create(
-
                         model=OPENAI_MODEL,
-
                         instructions=SYSTEM_PROMPT,
-
                         input=messages,
-
                         max_output_tokens=1000
                     )
                 )
@@ -549,6 +631,7 @@ from the internet.
                 print(
                     "OPENAI REQUEST SUCCESSFUL"
                 )
+
 
                 break
 
@@ -597,24 +680,24 @@ from the internet.
 
 
         return {
-
             "reply":
                 "Sorry, I could not connect to the OpenAI AI service. Please try again."
         }
 
 
-    # =====================================
+    # -----------------------------------------------------
     # SAVE AI RESPONSE
-    # =====================================
+    # -----------------------------------------------------
 
-    conversation_history.append({
+    conversation_history.append(
+        {
+            "role":
+                "assistant",
 
-        "role":
-            "assistant",
-
-        "content":
-            ai_response
-    })
+            "content":
+                ai_response
+        }
+    )
 
 
     conversation_history = save_history(
@@ -631,20 +714,20 @@ from the internet.
 
 
     return {
-
         "reply":
             ai_response
     }
 
 
-# =========================================
+# =========================================================
 # RESET MEMORY
-# =========================================
+# =========================================================
 
 @app.post("/reset")
 def reset():
 
     global conversation_history
+
 
     conversation_history = []
 
@@ -655,27 +738,31 @@ def reset():
 
 
     return {
-
         "message":
             "Conversation reset."
     }
 
 
-# =========================================
+# =========================================================
 # PDF UPLOAD
-# =========================================
+# =========================================================
 
 @app.post("/upload")
 async def upload_pdf(
     file: UploadFile = File(...)
 ):
 
-    if not file.filename.lower().endswith(
-        ".pdf"
-    ):
+
+    global rag_documents
+
+
+    # -----------------------------------------------------
+    # Check PDF
+    # -----------------------------------------------------
+
+    if not file.filename.lower().endswith(".pdf"):
 
         return {
-
             "success":
                 False,
 
@@ -684,42 +771,20 @@ async def upload_pdf(
         }
 
 
-    if collection is None:
-
-        return {
-
-            "success":
-                False,
-
-            "message":
-                "RAG database is not available."
-        }
-
-
-    if openai_client is None:
-
-        return {
-
-            "success":
-                False,
-
-            "message":
-                "OpenAI API key is not configured."
-        }
-
-
     try:
 
-        # =================================
-        # READ PDF
-        # =================================
+        print()
+        print("================================")
+        print("PDF UPLOAD STARTED")
+        print("================================")
+
 
         file_bytes = await file.read()
 
 
-        # =================================
-        # SAVE PDF
-        # =================================
+        # -------------------------------------------------
+        # Save original PDF
+        # -------------------------------------------------
 
         pdf_path = os.path.join(
             DOCUMENTS_DIR,
@@ -737,9 +802,9 @@ async def upload_pdf(
             )
 
 
-        # =================================
-        # EXTRACT TEXT
-        # =================================
+        # -------------------------------------------------
+        # Extract text
+        # -------------------------------------------------
 
         pdf_reader = PdfReader(
             BytesIO(file_bytes)
@@ -757,14 +822,14 @@ async def upload_pdf(
             if text:
 
                 full_text += (
-                    text + "\n"
+                    text
+                    + "\n"
                 )
 
 
         if not full_text.strip():
 
             return {
-
                 "success":
                     False,
 
@@ -773,11 +838,12 @@ async def upload_pdf(
             }
 
 
-        # =================================
-        # CREATE CHUNKS
-        # =================================
+        # -------------------------------------------------
+        # Create chunks
+        # -------------------------------------------------
 
         chunk_size = 1000
+
 
         chunks = []
 
@@ -788,9 +854,12 @@ async def upload_pdf(
             chunk_size
         ):
 
-            chunk = full_text[
-                i:i + chunk_size
-            ].strip()
+            chunk = (
+                full_text[
+                    i:i + chunk_size
+                ]
+                .strip()
+            )
 
 
             if chunk:
@@ -803,7 +872,6 @@ async def upload_pdf(
         if not chunks:
 
             return {
-
                 "success":
                     False,
 
@@ -812,115 +880,50 @@ async def upload_pdf(
             }
 
 
-        # =================================
-        # CREATE EMBEDDINGS
-        # =================================
+        # -------------------------------------------------
+        # Add chunks to local RAG
+        # -------------------------------------------------
 
-        print()
-        print("================================")
-        print("CREATING PDF EMBEDDINGS")
-        print("================================")
+        for chunk in chunks:
 
+            rag_documents.append(
+                {
+                    "source":
+                        file.filename,
 
-        # Process in batches so large PDFs
-        # don't create unnecessarily large requests.
-
-        all_embeddings = []
-
-        batch_size = 50
-
-
-        for i in range(
-            0,
-            len(chunks),
-            batch_size
-        ):
-
-            batch = chunks[
-                i:i + batch_size
-            ]
-
-
-            print(
-                f"Embedding chunks "
-                f"{i + 1}-{min(i + batch_size, len(chunks))}"
+                    "text":
+                        chunk
+                }
             )
 
 
-            batch_embeddings = create_embeddings(
-                batch
-            )
+        # -------------------------------------------------
+        # Save local RAG
+        # -------------------------------------------------
 
-
-            all_embeddings.extend(
-                batch_embeddings
-            )
-
-
-        # =================================
-        # ADD TO CHROMADB
-        # =================================
-
-        start_id = collection.count()
-
-
-        ids = [
-
-            f"{file.filename}_{start_id + i}"
-
-            for i in range(
-                len(chunks)
-            )
-        ]
-
-
-        metadatas = [
-
-            {
-                "source":
-                    file.filename
-            }
-
-            for _ in chunks
-        ]
-
-
-        collection.add(
-
-            documents=chunks,
-
-            embeddings=all_embeddings,
-
-            ids=ids,
-
-            metadatas=metadatas
+        save_rag(
+            rag_documents
         )
 
 
-        total_chunks = collection.count()
-
-
         print()
         print("================================")
-        print("PDF UPLOADED")
+        print("PDF UPLOADED SUCCESSFULLY")
         print("================================")
-
 
         print(
             "Filename:",
             file.filename
         )
 
-
         print(
             "Chunks added:",
             len(chunks)
         )
 
-
         print(
-            "Total chunks:",
-            total_chunks
+            "Total RAG chunks:",
+            len(rag_documents)
         )
 
 
@@ -939,7 +942,7 @@ async def upload_pdf(
                 len(chunks),
 
             "total_chunks":
-                total_chunks
+                len(rag_documents)
         }
 
 
