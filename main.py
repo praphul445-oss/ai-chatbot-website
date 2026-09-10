@@ -20,7 +20,7 @@ from openai import OpenAI
 app = FastAPI(
     title="My AI Chatbot API",
     description="AI Chatbot with OpenAI, Memory and Improved Local RAG",
-    version="5.0"
+    version="6.0"
 )
 
 
@@ -98,7 +98,7 @@ SYSTEM_PROMPT = """
 You are a helpful AI chatbot.
 
 You must remember and use information the user tells you
-during this conversation.
+during the conversation.
 
 If the user tells you their name, remember it and answer
 correctly when they later ask for their name.
@@ -110,8 +110,8 @@ IMPORTANT RAG RULES:
 1. When relevant RAG information is provided, use it
    to answer the user's question.
 
-2. Prefer the information from the uploaded documents
-   when the question is specifically about those documents.
+2. Prefer information from uploaded documents when
+   the question is specifically about those documents.
 
 3. Do not invent information that is not supported by
    the provided RAG context.
@@ -119,7 +119,7 @@ IMPORTANT RAG RULES:
 4. If the RAG context does not contain the answer,
    you may use your general knowledge.
 
-5. Do not say that the RAG information came from the internet.
+5. Do not say that RAG information came from the internet.
 
 6. Keep answers clear and useful.
 
@@ -142,7 +142,13 @@ def load_history():
 
                 history = json.load(f)
 
-            return history[-MAX_MEMORY_MESSAGES:]
+            if not isinstance(history, list):
+
+                return []
+
+            return history[
+                -MAX_MEMORY_MESSAGES:
+            ]
 
         except Exception as e:
 
@@ -158,19 +164,30 @@ def load_history():
 
 def save_history(history):
 
-    history = history[-MAX_MEMORY_MESSAGES:]
+    history = history[
+        -MAX_MEMORY_MESSAGES:
+    ]
 
-    with open(
-        MEMORY_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
+    try:
 
-        json.dump(
-            history,
-            f,
-            indent=2,
-            ensure_ascii=False
+        with open(
+            MEMORY_FILE,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            json.dump(
+                history,
+                f,
+                indent=2,
+                ensure_ascii=False
+            )
+
+    except Exception as e:
+
+        print(
+            "MEMORY SAVE ERROR:",
+            e
         )
 
     return history
@@ -179,8 +196,14 @@ def save_history(history):
 conversation_history = load_history()
 
 
-print("=== STARTUP MEMORY ===")
-print(conversation_history)
+print()
+print("================================")
+print("STARTUP MEMORY")
+print("================================")
+
+print(
+    conversation_history
+)
 
 
 # =========================================================
@@ -245,24 +268,39 @@ def load_rag():
 
 def save_rag(data):
 
-    with open(
-        RAG_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
+    try:
 
-        json.dump(
-            data,
-            f,
-            indent=2,
-            ensure_ascii=False
+        with open(
+            RAG_FILE,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            json.dump(
+                data,
+                f,
+                indent=2,
+                ensure_ascii=False
+            )
+
+    except Exception as e:
+
+        print(
+            "RAG SAVE ERROR:",
+            e
         )
+
+        raise
 
 
 rag_documents = load_rag()
 
 
-print("=== LOCAL RAG STARTED ===")
+print()
+print("================================")
+print("LOCAL RAG STARTED")
+print("================================")
+
 print(
     "RAG chunks:",
     len(rag_documents)
@@ -343,7 +381,10 @@ def tokenize(text):
 # CREATE CHUNKS
 # =========================================================
 
-def create_chunks(text, page_number):
+def create_chunks(
+    text,
+    page_number
+):
 
     text = re.sub(
         r"\s+",
@@ -354,7 +395,6 @@ def create_chunks(text, page_number):
     if not text:
 
         return []
-
 
     chunks = []
 
@@ -369,7 +409,6 @@ def create_chunks(text, page_number):
             start + CHUNK_SIZE,
             text_length
         )
-
 
         chunk = text[
             start:end
@@ -415,7 +454,9 @@ def document_exists(filename):
 
     for document in rag_documents:
 
-        if document.get("source") == filename:
+        if document.get(
+            "source"
+        ) == filename:
 
             return True
 
@@ -453,10 +494,6 @@ def search_rag(query):
         }
 
 
-    # -----------------------------------------------------
-    # Query phrase
-    # -----------------------------------------------------
-
     normalized_query = re.sub(
         r"\s+",
         " ",
@@ -465,7 +502,7 @@ def search_rag(query):
 
 
     # -----------------------------------------------------
-    # Document frequency
+    # DOCUMENT FREQUENCY
     # -----------------------------------------------------
 
     document_frequency = {}
@@ -500,7 +537,7 @@ def search_rag(query):
 
 
     # -----------------------------------------------------
-    # Score documents
+    # SCORE DOCUMENTS
     # -----------------------------------------------------
 
     scored_documents = []
@@ -547,7 +584,7 @@ def search_rag(query):
 
 
         # -------------------------------------------------
-        # TF-IDF style scoring
+        # TF-IDF STYLE SCORE
         # -------------------------------------------------
 
         for query_word in query_words:
@@ -582,7 +619,7 @@ def search_rag(query):
 
 
         # -------------------------------------------------
-        # Exact phrase bonus
+        # EXACT PHRASE BONUS
         # -------------------------------------------------
 
         if (
@@ -594,7 +631,7 @@ def search_rag(query):
 
 
         # -------------------------------------------------
-        # Query word coverage bonus
+        # QUERY COVERAGE BONUS
         # -------------------------------------------------
 
         matched_words = 0
@@ -634,7 +671,7 @@ def search_rag(query):
 
 
     # -----------------------------------------------------
-    # Sort by relevance
+    # SORT
     # -----------------------------------------------------
 
     scored_documents.sort(
@@ -644,7 +681,7 @@ def search_rag(query):
 
 
     # -----------------------------------------------------
-    # Top results
+    # TOP RESULTS
     # -----------------------------------------------------
 
     top_documents = [
@@ -668,7 +705,7 @@ def search_rag(query):
 
 
     # -----------------------------------------------------
-    # Build context
+    # BUILD CONTEXT
     # -----------------------------------------------------
 
     print()
@@ -816,358 +853,348 @@ def home():
             CHUNK_OVERLAP,
 
         "memory":
+            True,
+
+        "upload":
             True
+
     }
 
 
 # =========================================================
-# CHAT
+# PDF UPLOAD
 # =========================================================
 
-@app.post("/chat")
-def chat(
-    request: ChatRequest
+@app.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...)
 ):
 
-    global conversation_history
+    global rag_documents
 
 
-    if openai_client is None:
+    print()
+    print("================================")
+    print("NEW PDF UPLOAD")
+    print("================================")
+
+    print(
+        "Filename:",
+        file.filename
+    )
+
+
+    # -----------------------------------------------------
+    # CHECK FILENAME
+    # -----------------------------------------------------
+
+    if not file.filename:
 
         return {
-            "reply":
-                "OpenAI API key is not configured."
+
+            "success":
+                False,
+
+            "message":
+                "No filename provided."
+
         }
 
 
-    user_message = request.message
-
-
     # -----------------------------------------------------
-    # SEARCH RAG
+    # CHECK PDF
     # -----------------------------------------------------
 
-    print()
-    print(
-        "================================"
-    )
-    print(
-        "SEARCHING LOCAL RAG"
-    )
-    print(
-        "================================"
-    )
+    if not file.filename.lower().endswith(
+        ".pdf"
+    ):
 
+        return {
 
-    rag_result = search_rag(
-        user_message
-    )
+            "success":
+                False,
 
+            "message":
+                "Only PDF files are supported."
 
-    rag_context = rag_result[
-        "context"
-    ]
-
-
-    rag_sources = rag_result[
-        "sources"
-    ]
-
-
-    # -----------------------------------------------------
-    # SAVE USER MESSAGE
-    # -----------------------------------------------------
-
-    conversation_history.append(
-        {
-            "role":
-                "user",
-
-            "content":
-                user_message
         }
-    )
-
-
-    conversation_history = (
-        conversation_history[
-            -MAX_MEMORY_MESSAGES:
-        ]
-    )
 
 
     # -----------------------------------------------------
-    # BUILD MESSAGES
+    # CHECK DUPLICATE
     # -----------------------------------------------------
 
-    messages = []
+    if document_exists(
+        file.filename
+    ):
+
+        return {
+
+            "success":
+                False,
+
+            "message":
+                "This PDF is already uploaded."
+
+        }
 
 
-    for message in conversation_history:
+    # -----------------------------------------------------
+    # READ FILE
+    # -----------------------------------------------------
 
-        messages.append(
-            {
-                "role":
-                    message["role"],
+    try:
 
-                "content":
-                    message["content"]
-            }
+        file_data = await file.read()
+
+    except Exception as e:
+
+        print(
+            "FILE READ ERROR:",
+            e
         )
 
+        return {
 
-    # -----------------------------------------------------
-    # ADD RAG CONTEXT
-    # -----------------------------------------------------
+            "success":
+                False,
 
-    if rag_context:
+            "message":
+                f"Could not read PDF: {e}"
 
-        rag_instruction = f"""
-
-Relevant information from the local
-knowledge base:
-
-================ RAG CONTEXT ================
-
-{rag_context}
-
-============== END RAG CONTEXT ==============
-
-Use the RAG context when it is relevant
-to the user's question.
-
-If the user asks specifically about the
-uploaded document, prioritize the document
-information.
-
-Do not claim that the information came
-from the internet.
-
-Do not mention retrieval scores.
-"""
+        }
 
 
-        messages[-1]["content"] = (
-            messages[-1]["content"]
-            + rag_instruction
-        )
+    if not file_data:
+
+        return {
+
+            "success":
+                False,
+
+            "message":
+                "The uploaded PDF is empty."
+
+        }
 
 
     # -----------------------------------------------------
-    # OPENAI
+    # SAVE ORIGINAL PDF
     # -----------------------------------------------------
 
-    print()
-    print(
-        "================================"
-    )
-    print(
-        "SENDING REQUEST TO OPENAI"
-    )
-    print(
-        "================================"
+    pdf_path = os.path.join(
+        DOCUMENTS_DIR,
+        file.filename
     )
 
 
     try:
 
-        response = None
+        with open(
+            pdf_path,
+            "wb"
+        ) as f:
+
+            f.write(
+                file_data
+            )
+
+    except Exception as e:
+
+        print(
+            "PDF SAVE ERROR:",
+            e
+        )
+
+        return {
+
+            "success":
+                False,
+
+            "message":
+                f"Could not save PDF: {e}"
+
+        }
 
 
-        for attempt in range(3):
+    # -----------------------------------------------------
+    # EXTRACT TEXT
+    # -----------------------------------------------------
+
+    try:
+
+        pdf_file = BytesIO(
+            file_data
+        )
+
+        reader = PdfReader(
+            pdf_file
+        )
+
+        all_chunks = []
+
+
+        for page_number, page in enumerate(
+            reader.pages,
+            start=1
+        ):
 
             try:
 
-                print(
-                    f"OPENAI ATTEMPT "
-                    f"{attempt + 1}/3"
-                )
+                page_text = page.extract_text()
 
 
-                response = (
-                    openai_client
-                    .responses
-                    .create(
-                        model=OPENAI_MODEL,
-                        instructions=SYSTEM_PROMPT,
-                        input=messages,
-                        max_output_tokens=1000
+                if page_text:
+
+                    page_chunks = create_chunks(
+                        page_text,
+                        page_number
                     )
-                )
 
 
-                print(
-                    "OPENAI REQUEST SUCCESSFUL"
-                )
-
-
-                break
+                    all_chunks.extend(
+                        page_chunks
+                    )
 
 
             except Exception as e:
 
                 print(
-                    f"OPENAI ATTEMPT "
-                    f"{attempt + 1} FAILED:",
+                    f"Could not read page {page_number}:",
                     e
                 )
 
 
-                if attempt < 2:
+        if not all_chunks:
 
-                    wait_time = 2 ** attempt
+            return {
 
+                "success":
+                    False,
 
-                    print(
-                        f"Retrying OpenAI "
-                        f"in {wait_time} seconds..."
+                "message":
+                    (
+                        "No readable text was found in the PDF. "
+                        "If this is a scanned PDF, OCR will be "
+                        "needed later."
                     )
 
-
-                    time.sleep(
-                        wait_time
-                    )
-
-                else:
-
-                    raise
+            }
 
 
-        ai_response = (
-            response.output_text
+    except Exception as e:
+
+        print(
+            "PDF EXTRACTION ERROR:",
+            e
+        )
+
+        return {
+
+            "success":
+                False,
+
+            "message":
+                f"Could not extract PDF text: {e}"
+
+        }
+
+
+    # -----------------------------------------------------
+    # PREPARE RAG DOCUMENTS
+    # -----------------------------------------------------
+
+    new_documents = []
+
+
+    for chunk in all_chunks:
+
+        new_documents.append({
+
+            "source":
+                file.filename,
+
+            "page":
+                chunk["page"],
+
+            "text":
+                chunk["text"]
+
+        })
+
+
+    # -----------------------------------------------------
+    # ADD TO LOCAL RAG
+    # -----------------------------------------------------
+
+    try:
+
+        rag_documents.extend(
+            new_documents
+        )
+
+
+        save_rag(
+            rag_documents
         )
 
 
     except Exception as e:
 
         print(
-            "OPENAI ERROR:",
+            "RAG SAVE ERROR:",
             e
         )
 
-
-        if conversation_history:
-
-            conversation_history.pop()
-
-
         return {
-            "reply":
-                "Sorry, I could not connect to the OpenAI AI service. Please try again."
+
+            "success":
+                False,
+
+            "message":
+                f"Could not save document to RAG: {e}"
+
         }
 
 
     # -----------------------------------------------------
-    # ADD SOURCES
-    # -----------------------------------------------------
-
-    if rag_sources:
-
-        source_lines = []
-
-
-        for source in rag_sources:
-
-            source_name = source[
-                "source"
-            ]
-
-
-            page = source[
-                "page"
-            ]
-
-
-            source_lines.append(
-                f"📄 {source_name} — Page {page}"
-            )
-
-
-        sources_text = (
-            "\n\n📚 Sources used:\n"
-            + "\n".join(
-                source_lines
-            )
-        )
-
-
-        ai_response = (
-            ai_response
-            + sources_text
-        )
-
-
-    # -----------------------------------------------------
-    # SAVE AI RESPONSE
-    # -----------------------------------------------------
-
-    conversation_history.append(
-        {
-            "role":
-                "assistant",
-
-            "content":
-                ai_response
-        }
-    )
-
-
-    conversation_history = (
-        save_history(
-            conversation_history
-        )
-    )
-
-
-    # -----------------------------------------------------
-    # LOG RESPONSE
+    # SUCCESS
     # -----------------------------------------------------
 
     print()
+    print("================================")
+    print("PDF UPLOADED SUCCESSFULLY")
+    print("================================")
+
+
     print(
-        "================================"
-    )
-    print(
-        "OPENAI RESPONSE"
-    )
-    print(
-        "================================"
+        "Filename:",
+        file.filename
     )
 
 
     print(
-        ai_response
+        "Pages:",
+        len(reader.pages)
+    )
+
+
+    print(
+        "Chunks added:",
+        len(new_documents)
+    )
+
+
+    print(
+        "Total RAG chunks:",
+        len(rag_documents)
     )
 
 
     return {
-        "reply":
-            ai_response
-    }
 
+        "success":
+            True,
 
-# =========================================================
-# RESET MEMORY
-# =========================================================
-
-@app.post("/reset")
-def reset():
-
-    global conversation_history
-
-
-    conversation_history = []
-
-
-    save_history(
-        conversation_history
-    )
-
-
-    return {
         "message":
-            "Conversation reset."
-    }
-
-
-# =====================================================
+            "PDF uploaded su
