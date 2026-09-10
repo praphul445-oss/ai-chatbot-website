@@ -1191,10 +1191,12 @@ async def upload_document(
     )
 
 
+
+
     return {
-
-        "success":
-            True,
-
-        "message":
-            "PDF uploaded successfully.",
+    "success": True,
+    "message": "PDF uploaded successfully.",
+    "filename": file.filename,
+    "chunks_added": len(new_documents),
+    "total_rag_chunks": len(rag_documents)
+}
