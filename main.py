@@ -8,7 +8,6 @@ import time
 from io import BytesIO
 
 import chromadb
-from chromadb.utils import embedding_functions
 from pypdf import PdfReader
 
 from openai import OpenAI
@@ -21,7 +20,7 @@ from openai import OpenAI
 app = FastAPI(
     title="My AI Chatbot API",
     description="AI Chatbot with OpenAI, Memory, RAG and PDF Upload",
-    version="2.0"
+    version="3.0"
 )
 
 
@@ -57,6 +56,14 @@ OPENAI_MODEL = os.getenv(
     "gpt-5.6-luna"
 )
 
+EMBEDDING_MODEL = os.getenv(
+    "EMBEDDING_MODEL",
+    "text-embedding-3-small"
+)
+
+EMBEDDING_DIMENSIONS = 512
+
+
 if OPENAI_API_KEY:
 
     openai_client = OpenAI(
@@ -65,6 +72,7 @@ if OPENAI_API_KEY:
 
     print("=== OPENAI CONNECTED ===")
     print("OpenAI model:", OPENAI_MODEL)
+    print("Embedding model:", EMBEDDING_MODEL)
 
 else:
 
@@ -105,7 +113,7 @@ correctly when they later ask for their name.
 Do not say that you cannot remember previous messages if
 those messages are included in the conversation.
 
-You also have access to a local RAG knowledge base.
+You also have access to a RAG knowledge base.
 
 When relevant information from the RAG knowledge base is
 provided, use it to answer the user's question.
@@ -173,7 +181,6 @@ def save_history(history):
 
 conversation_history = load_history()
 
-
 print("=== STARTUP MEMORY ===")
 print(conversation_history)
 
@@ -182,10 +189,14 @@ print(conversation_history)
 # RAG CONFIGURATION
 # =========================================
 
+# IMPORTANT:
+# We use a new database directory because the old
+# database used SentenceTransformer embeddings.
+
 RAG_DATABASE_DIR = os.path.join(
     BASE_DIR,
     "rag",
-    "chroma_db"
+    "chroma_db_openai"
 )
 
 DOCUMENTS_DIR = os.path.join(
@@ -210,19 +221,12 @@ try:
         path=RAG_DATABASE_DIR
     )
 
-    embedding_function = (
-        embedding_functions
-        .SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
-    )
-
     collection = chroma_client.get_or_create_collection(
-        name="knowledge",
-        embedding_function=embedding_function
+        name="knowledge_openai"
     )
 
     print("=== RAG DATABASE CONNECTED ===")
+
     print(
         "Total RAG chunks:",
         collection.count()
@@ -237,6 +241,45 @@ except Exception as e:
 
 
 # =========================================
+# CREATE EMBEDDINGS
+# =========================================
+
+def create_embeddings(texts):
+
+    if openai_client is None:
+        raise RuntimeError(
+            "OpenAI API key is not configured."
+        )
+
+    if not texts:
+        return []
+
+    try:
+
+        response = openai_client.embeddings.create(
+            model=EMBEDDING_MODEL,
+            input=texts,
+            dimensions=EMBEDDING_DIMENSIONS
+        )
+
+        embeddings = [
+            item.embedding
+            for item in response.data
+        ]
+
+        return embeddings
+
+    except Exception as e:
+
+        print(
+            "EMBEDDING ERROR:",
+            e
+        )
+
+        raise
+
+
+# =========================================
 # RAG SEARCH
 # =========================================
 
@@ -244,27 +287,40 @@ def search_rag(query):
 
     if collection is None:
 
-        print("RAG collection unavailable.")
+        print(
+            "RAG collection unavailable."
+        )
 
         return ""
 
 
     try:
 
-        if collection.count() == 0:
+        total = collection.count()
 
-            print("RAG database is empty.")
+        if total == 0:
+
+            print(
+                "RAG database is empty."
+            )
 
             return ""
 
 
+        query_embedding = create_embeddings(
+            [query]
+        )[0]
+
+
         results = collection.query(
 
-            query_texts=[query],
+            query_embeddings=[
+                query_embedding
+            ],
 
             n_results=min(
                 3,
-                collection.count()
+                total
             )
         )
 
@@ -284,7 +340,9 @@ def search_rag(query):
             return ""
 
 
-        print("=== RAG SEARCH RESULTS ===")
+        print(
+            "=== RAG SEARCH RESULTS ==="
+        )
 
 
         for document in documents:
@@ -296,7 +354,9 @@ def search_rag(query):
             print(document)
 
 
-        return "\n\n".join(documents)
+        return "\n\n".join(
+            documents
+        )
 
 
     except Exception as e:
@@ -327,8 +387,16 @@ def home():
         "model":
             OPENAI_MODEL,
 
+        "embedding_model":
+            EMBEDDING_MODEL,
+
         "rag":
             collection is not None,
+
+        "rag_chunks":
+            collection.count()
+            if collection is not None
+            else 0,
 
         "memory":
             True
@@ -413,7 +481,7 @@ def chat(request: ChatRequest):
 
         rag_instruction = f"""
 
-Relevant information from the local knowledge base:
+Relevant information from the knowledge base:
 
 ---------------- RAG CONTEXT ----------------
 
@@ -430,7 +498,9 @@ from the internet.
 
 
         messages[-1]["content"] = (
+
             messages[-1]["content"]
+
             + rag_instruction
         )
 
@@ -460,6 +530,7 @@ from the internet.
 
 
                 response = (
+
                     openai_client
                     .responses
                     .create(
@@ -577,9 +648,11 @@ def reset():
 
     conversation_history = []
 
+
     save_history(
         conversation_history
     )
+
 
     return {
 
@@ -620,6 +693,18 @@ async def upload_pdf(
 
             "message":
                 "RAG database is not available."
+        }
+
+
+    if openai_client is None:
+
+        return {
+
+            "success":
+                False,
+
+            "message":
+                "OpenAI API key is not configured."
         }
 
 
@@ -715,6 +800,63 @@ async def upload_pdf(
                 )
 
 
+        if not chunks:
+
+            return {
+
+                "success":
+                    False,
+
+                "message":
+                    "No usable text chunks found."
+            }
+
+
+        # =================================
+        # CREATE EMBEDDINGS
+        # =================================
+
+        print()
+        print("================================")
+        print("CREATING PDF EMBEDDINGS")
+        print("================================")
+
+
+        # Process in batches so large PDFs
+        # don't create unnecessarily large requests.
+
+        all_embeddings = []
+
+        batch_size = 50
+
+
+        for i in range(
+            0,
+            len(chunks),
+            batch_size
+        ):
+
+            batch = chunks[
+                i:i + batch_size
+            ]
+
+
+            print(
+                f"Embedding chunks "
+                f"{i + 1}-{min(i + batch_size, len(chunks))}"
+            )
+
+
+            batch_embeddings = create_embeddings(
+                batch
+            )
+
+
+            all_embeddings.extend(
+                batch_embeddings
+            )
+
+
         # =================================
         # ADD TO CHROMADB
         # =================================
@@ -747,6 +889,8 @@ async def upload_pdf(
 
             documents=chunks,
 
+            embeddings=all_embeddings,
+
             ids=ids,
 
             metadatas=metadatas
@@ -761,15 +905,18 @@ async def upload_pdf(
         print("PDF UPLOADED")
         print("================================")
 
+
         print(
             "Filename:",
             file.filename
         )
 
+
         print(
             "Chunks added:",
             len(chunks)
         )
+
 
         print(
             "Total chunks:",
