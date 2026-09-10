@@ -1,106 +1,148 @@
+// =========================================================
+// BACKEND
+// =========================================================
+
+const BACKEND_URL =
+    "https://ai-chatbot-website-zlqu.onrender.com";
+
+
+// =========================================================
+// ELEMENTS
+// =========================================================
+
+const input = document.getElementById("userInput");
+const chatbox = document.getElementById("chatbox");
+const sendButton = document.getElementById("sendButton");
+const pdfInput = document.getElementById("pdfInput");
+const uploadStatus = document.getElementById("uploadStatus");
+
+
+// =========================================================
+// SEND MESSAGE
+// =========================================================
+
 async function sendMessage() {
 
-    // -----------------------------
-    // Get input
-    // -----------------------------
-
-    const input = document.getElementById("userInput");
     const message = input.value.trim();
 
     if (message === "") {
         return;
     }
 
-    // -----------------------------
-    // Get chatbox
-    // -----------------------------
 
-    const chatbox = document.getElementById("chatbox");
+    // -----------------------------------------------------
+    // Disable input while AI is responding
+    // -----------------------------------------------------
+
+    input.disabled = true;
+    sendButton.disabled = true;
 
 
-    // -----------------------------
-    // Add USER message
-    // -----------------------------
+    // -----------------------------------------------------
+    // Show user message
+    // -----------------------------------------------------
 
-    const userMessage = document.createElement("div");
+    const userMessage =
+        document.createElement("div");
 
-    userMessage.classList.add("message", "user-message");
+    userMessage.classList.add(
+        "message",
+        "user-message"
+    );
+
     userMessage.textContent = message;
 
     chatbox.appendChild(userMessage);
 
+
+    // Clear input
+
     input.value = "";
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
 
 
-    // -----------------------------
-    // Add THINKING message
-    // -----------------------------
+    // -----------------------------------------------------
+    // Show typing animation
+    // -----------------------------------------------------
 
-    const thinkingMessage = document.createElement("div");
+    const thinkingMessage =
+        document.createElement("div");
 
-    thinkingMessage.classList.add("message", "ai-message");
-    thinkingMessage.textContent = "Thinking...";
+    thinkingMessage.classList.add(
+        "message",
+        "ai-message"
+    );
 
-    chatbox.appendChild(thinkingMessage);
+    thinkingMessage.innerHTML = `
+        <div class="typing">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    `;
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+    chatbox.appendChild(
+        thinkingMessage
+    );
 
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
+
+
+    // -----------------------------------------------------
+    // Send request to backend
+    // -----------------------------------------------------
 
     try {
 
-        // -----------------------------
-        // Send message to FastAPI
-        // -----------------------------
+        const response =
+            await fetch(
+                BACKEND_URL + "/chat",
+                {
+                    method: "POST",
 
-        const response = await fetch(
-            "http://127.0.0.1:8000/chat",
-            {
-                method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-                    message: message
-                })
-            }
-        );
+                    body: JSON.stringify({
+                        message: message
+                    })
+                }
+            );
 
 
-        // -----------------------------
-        // Check server response
-        // -----------------------------
+        // -------------------------------------------------
+        // Check response
+        // -------------------------------------------------
 
         if (!response.ok) {
 
             throw new Error(
-                "Backend error: " + response.status
+                "Backend error: " +
+                response.status
             );
         }
 
 
-        // -----------------------------
-        // Convert response to JSON
-        // -----------------------------
-
-        const data = await response.json();
+        const data =
+            await response.json();
 
 
-        // -----------------------------
-        // Remove Thinking
-        // -----------------------------
+        // Remove typing animation
 
         thinkingMessage.remove();
 
 
-        // -----------------------------
+        // -------------------------------------------------
         // Create AI message
-        // -----------------------------
+        // -------------------------------------------------
 
-        const aiMessage = document.createElement("div");
+        const aiMessage =
+            document.createElement("div");
 
         aiMessage.classList.add(
             "message",
@@ -110,7 +152,8 @@ async function sendMessage() {
 
         if (data.reply) {
 
-            aiMessage.textContent = data.reply;
+            aiMessage.textContent =
+                data.reply;
 
         } else {
 
@@ -119,13 +162,13 @@ async function sendMessage() {
         }
 
 
-        // -----------------------------
-        // Add AI response
-        // -----------------------------
+        chatbox.appendChild(
+            aiMessage
+        );
 
-        chatbox.appendChild(aiMessage);
 
-        chatbox.scrollTop = chatbox.scrollHeight;
+        chatbox.scrollTop =
+            chatbox.scrollHeight;
 
 
     } catch (error) {
@@ -136,16 +179,14 @@ async function sendMessage() {
         );
 
 
-        // -----------------------------
-        // Remove Thinking
-        // -----------------------------
+        // Remove typing message
 
         thinkingMessage.remove();
 
 
-        // -----------------------------
-        // Create error message
-        // -----------------------------
+        // -------------------------------------------------
+        // Show error
+        // -------------------------------------------------
 
         const errorMessage =
             document.createElement("div");
@@ -156,39 +197,40 @@ async function sendMessage() {
         );
 
         errorMessage.textContent =
-            "❌ Error: Cannot connect to AI backend.";
+            "❌ I couldn't connect to the AI backend. Please try again.";
 
 
-        chatbox.appendChild(errorMessage);
+        chatbox.appendChild(
+            errorMessage
+        );
+
 
         chatbox.scrollTop =
             chatbox.scrollHeight;
     }
+
+
+    // -----------------------------------------------------
+    // Enable input again
+    // -----------------------------------------------------
+
+    input.disabled = false;
+    sendButton.disabled = false;
+
+    input.focus();
 }
 
 
-// =====================================
-// PDF UPLOAD
-// =====================================
+// =========================================================
+// PDF UPLOAD / RAG
+// =========================================================
 
 async function uploadPDF() {
 
-    // -----------------------------
-    // Get selected PDF
-    // -----------------------------
-
-    const pdfInput =
-        document.getElementById("pdfInput");
-
-    const uploadStatus =
-        document.getElementById("uploadStatus");
-
-
-    // -----------------------------
-    // Check if PDF selected
-    // -----------------------------
-
-    if (pdfInput.files.length === 0) {
+    if (
+        !pdfInput ||
+        pdfInput.files.length === 0
+    ) {
 
         uploadStatus.textContent =
             "⚠️ Please select a PDF first.";
@@ -197,16 +239,19 @@ async function uploadPDF() {
     }
 
 
-    const file = pdfInput.files[0];
+    const file =
+        pdfInput.files[0];
 
 
-    // -----------------------------
-    // Check file type
-    // -----------------------------
+    // -----------------------------------------------------
+    // Check PDF
+    // -----------------------------------------------------
 
     if (
         file.type !== "application/pdf" &&
-        !file.name.toLowerCase().endsWith(".pdf")
+        !file.name
+            .toLowerCase()
+            .endsWith(".pdf")
     ) {
 
         uploadStatus.textContent =
@@ -216,21 +261,18 @@ async function uploadPDF() {
     }
 
 
-    // -----------------------------
-    // Show uploading status
-    // -----------------------------
+    // -----------------------------------------------------
+    // Upload status
+    // -----------------------------------------------------
 
     uploadStatus.textContent =
-        "⏳ Uploading PDF...";
+        "⏳ Uploading PDF and building RAG...";
 
 
     try {
 
-        // -----------------------------
-        // Create FormData
-        // -----------------------------
-
-        const formData = new FormData();
+        const formData =
+            new FormData();
 
         formData.append(
             "file",
@@ -238,23 +280,15 @@ async function uploadPDF() {
         );
 
 
-        // -----------------------------
-        // Send PDF to FastAPI
-        // -----------------------------
+        const response =
+            await fetch(
+                BACKEND_URL + "/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
 
-        const response = await fetch(
-            "http://127.0.0.1:8000/upload",
-            {
-                method: "POST",
-
-                body: formData
-            }
-        );
-
-
-        // -----------------------------
-        // Check response
-        // -----------------------------
 
         if (!response.ok) {
 
@@ -265,17 +299,13 @@ async function uploadPDF() {
         }
 
 
-        // -----------------------------
-        // Convert response to JSON
-        // -----------------------------
-
         const data =
             await response.json();
 
 
-        // -----------------------------
-        // Show result
-        // -----------------------------
+        // -------------------------------------------------
+        // Success
+        // -------------------------------------------------
 
         if (data.success) {
 
@@ -285,6 +315,12 @@ async function uploadPDF() {
                 " | " +
                 data.chunks_added +
                 " chunks added.";
+
+
+            // Clear file selector
+
+            pdfInput.value = "";
+
 
         } else {
 
@@ -303,27 +339,157 @@ async function uploadPDF() {
 
 
         uploadStatus.textContent =
-            "❌ Could not upload PDF. Check that the FastAPI server is running.";
+            "❌ Could not upload PDF. Check that the backend is running.";
     }
 }
 
 
-// =====================================
-// PRESS ENTER TO SEND
-// =====================================
+// =========================================================
+// NEW CHAT / RESET
+// =========================================================
 
-document
-    .getElementById("userInput")
-    .addEventListener(
-        "keydown",
-        function(event) {
+async function newChat() {
 
-            if (event.key === "Enter") {
+    try {
 
-                event.preventDefault();
+        const response =
+            await fetch(
+                BACKEND_URL + "/reset",
+                {
+                    method: "POST"
+                }
+            );
 
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Reset failed"
+            );
+        }
+
+
+        // -------------------------------------------------
+        // Clear chat screen
+        // -------------------------------------------------
+
+        chatbox.innerHTML = `
+            <div class="message ai-message">
+                👋 New chat started!
+                How can I help you?
+            </div>
+        `;
+
+
+        input.value = "";
+
+        input.focus();
+
+
+    } catch (error) {
+
+        console.error(
+            "RESET ERROR:",
+            error
+        );
+
+
+        const errorMessage =
+            document.createElement("div");
+
+        errorMessage.classList.add(
+            "message",
+            "ai-message"
+        );
+
+        errorMessage.textContent =
+            "❌ Could not reset the conversation.";
+
+
+        chatbox.appendChild(
+            errorMessage
+        );
+    }
+}
+
+
+// =========================================================
+// CREATE NEW CHAT BUTTON
+// =========================================================
+
+const newChatButton =
+    document.createElement("button");
+
+newChatButton.textContent =
+    "🔄 New Chat";
+
+newChatButton.type =
+    "button";
+
+newChatButton.style.padding =
+    "10px 16px";
+
+newChatButton.style.border =
+    "none";
+
+newChatButton.style.borderRadius =
+    "10px";
+
+newChatButton.style.background =
+    "#334155";
+
+newChatButton.style.color =
+    "white";
+
+newChatButton.style.fontSize =
+    "14px";
+
+newChatButton.style.fontWeight =
+    "600";
+
+newChatButton.style.cursor =
+    "pointer";
+
+newChatButton.onclick =
+    newChat;
+
+
+// Put New Chat button in header
+
+const header =
+    document.querySelector(
+        ".chat-header"
+    );
+
+if (header) {
+
+    header.style.position =
+        "relative";
+
+    header.appendChild(
+        newChatButton
+    );
+}
+
+
+// =========================================================
+// ENTER KEY
+// =========================================================
+
+input.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            if (!sendButton.disabled) {
                 sendMessage();
             }
-
         }
-    );
+    }
+);

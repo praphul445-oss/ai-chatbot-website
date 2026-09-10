@@ -3,22 +3,41 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>My AI Chatbot</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 </head>
+
 
 <body>
 
     <div class="chat-container">
 
+
+        <!-- =================================================
+             HEADER
+             ================================================= -->
+
         <div class="chat-header">
+
             🤖 My AI Chatbot
+
         </div>
 
-        <!-- PDF UPLOAD AREA -->
+
+        <!-- =================================================
+             RAG / PDF AREA
+             ================================================= -->
+
         <div class="upload-area">
 
             <input
@@ -27,7 +46,9 @@
                 accept=".pdf,application/pdf"
             >
 
-            <button onclick="uploadPDF()">
+            <button
+                onclick="uploadPDF()"
+            >
                 📄 Upload PDF
             </button>
 
@@ -35,31 +56,55 @@
 
         </div>
 
-        <!-- CHAT AREA -->
-        <div class="chatbox" id="chatbox">
 
-            <div class="message ai-message">
-                Hello! 👋 I am your AI assistant. How can I help you?
+        <!-- =================================================
+             CHAT AREA
+             ================================================= -->
+
+        <div
+            class="chatbox"
+            id="chatbox"
+        >
+
+            <div
+                class="message ai-message"
+            >
+                👋 Hello! I am your AI assistant.
+                How can I help you?
             </div>
 
         </div>
 
-        <!-- MESSAGE INPUT -->
+
+        <!-- =================================================
+             INPUT AREA
+             ================================================= -->
+
         <div class="input-area">
 
             <input
                 type="text"
                 id="userInput"
-                placeholder="Type your message..."
+                placeholder="Ask me anything..."
+                autocomplete="off"
             >
 
-            <button onclick="sendMessage()">
+            <button
+                id="sendButton"
+                onclick="sendMessage()"
+            >
                 Send
             </button>
 
         </div>
 
+
     </div>
+
+
+    <!-- =====================================================
+         JAVASCRIPT
+         ===================================================== -->
 
     <script src="script.js"></script>
 
