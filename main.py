@@ -19,7 +19,7 @@ from openai import OpenAI
 
 app = FastAPI(
     title="My AI Chatbot API",
-    description="AI Chatbot with OpenAI, Memory and Improved Local RAG",
+    description="AI Chatbot with Groq, Memory and Improved Local RAG",
     version="7.0"
 )
 
@@ -46,31 +46,34 @@ class ChatRequest(BaseModel):
 
 
 # =========================================================
-# OPENAI
+# GROQ (OpenAI-compatible endpoint)
 # =========================================================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-OPENAI_MODEL = os.getenv(
-    "OPENAI_MODEL",
-    "gpt-5.6-luna"
+GROQ_MODEL = os.getenv(
+    "GROQ_MODEL",
+    "llama-3.3-70b-versatile"
 )
 
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
-if OPENAI_API_KEY:
+
+if GROQ_API_KEY:
 
     openai_client = OpenAI(
-        api_key=OPENAI_API_KEY
+        api_key=GROQ_API_KEY,
+        base_url=GROQ_BASE_URL
     )
 
-    print("=== OPENAI CONNECTED ===")
-    print("OpenAI model:", OPENAI_MODEL)
+    print("=== GROQ CONNECTED ===")
+    print("Groq model:", GROQ_MODEL)
 
 else:
 
     openai_client = None
 
-    print("=== WARNING: OPENAI_API_KEY NOT SET ===")
+    print("=== WARNING: GROQ_API_KEY NOT SET ===")
 
 
 # =========================================================
@@ -743,10 +746,10 @@ def home():
             "AI Chatbot backend is running!",
 
         "ai":
-            "OpenAI",
+            "Groq",
 
         "model":
-            OPENAI_MODEL,
+            GROQ_MODEL,
 
         "rag":
             True,
@@ -811,7 +814,7 @@ async def chat(request: ChatRequest):
 
 
     # -----------------------------------------------------
-    # CHECK OPENAI
+    # CHECK GROQ
     # -----------------------------------------------------
 
     if openai_client is None:
@@ -819,7 +822,7 @@ async def chat(request: ChatRequest):
         return {
             "reply":
                 (
-                    "⚠️ OpenAI API key is not configured "
+                    "⚠️ Groq API key is not configured "
                     "on the backend."
                 )
         }
@@ -868,7 +871,7 @@ question, you may use your general knowledge.
 
 
     # -----------------------------------------------------
-    # BUILD OPENAI MESSAGES
+    # BUILD MESSAGES
     # -----------------------------------------------------
 
     messages = [
@@ -922,7 +925,7 @@ question, you may use your general knowledge.
 
 
     # -----------------------------------------------------
-    # OPENAI REQUEST
+    # GROQ REQUEST
     # -----------------------------------------------------
 
     response = None
@@ -935,13 +938,13 @@ question, you may use your general knowledge.
         try:
 
             print(
-                f"OpenAI request attempt {attempt + 1}"
+                f"Groq request attempt {attempt + 1}"
             )
 
 
             response = (
                 openai_client.chat.completions.create(
-                    model=OPENAI_MODEL,
+                    model=GROQ_MODEL,
                     messages=messages
                 )
             )
@@ -955,7 +958,7 @@ question, you may use your general knowledge.
             last_error = e
 
             print(
-                "OPENAI ERROR:",
+                "GROQ ERROR:",
                 e
             )
 
@@ -976,13 +979,13 @@ question, you may use your general knowledge.
 
 
     # -----------------------------------------------------
-    # OPENAI FAILED
+    # GROQ FAILED
     # -----------------------------------------------------
 
     if response is None:
 
         print(
-            "OPENAI FINAL ERROR:",
+            "GROQ FINAL ERROR:",
             last_error
         )
 
@@ -991,7 +994,7 @@ question, you may use your general knowledge.
             "reply":
                 (
                     "⚠️ I could not get a response "
-                    "from OpenAI.\n\n"
+                    "from Groq.\n\n"
                     f"Error: {str(last_error)}"
                 )
         }
@@ -1019,7 +1022,7 @@ question, you may use your general knowledge.
 
         return {
             "reply":
-                "⚠️ OpenAI returned an invalid response."
+                "⚠️ Groq returned an invalid response."
         }
 
 
