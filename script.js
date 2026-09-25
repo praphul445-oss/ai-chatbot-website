@@ -10,11 +10,52 @@ const BACKEND_URL =
 // ELEMENTS
 // =========================================================
 
-const input = document.getElementById("userInput");
-const chatbox = document.getElementById("chatbox");
-const sendButton = document.getElementById("sendButton");
-const pdfInput = document.getElementById("pdfInput");
-const uploadStatus = document.getElementById("uploadStatus");
+const input =
+    document.getElementById("userInput");
+
+const chatbox =
+    document.getElementById("chatbox");
+
+const sendButton =
+    document.getElementById("sendButton");
+
+const pdfInput =
+    document.getElementById("pdfInput");
+
+const imageInput =
+    document.getElementById("imageInput");
+
+const uploadStatus =
+    document.getElementById("uploadStatus");
+
+const attachmentMenu =
+    document.getElementById("attachmentMenu");
+
+
+// =========================================================
+// CHAT HISTORY STORAGE
+// =========================================================
+
+const HISTORY_KEY =
+    "my_ai_chat_history";
+
+let currentMessages = [];
+
+
+// =========================================================
+// STARTUP
+// =========================================================
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        loadHistoryList();
+
+        autoResizeInput();
+
+    }
+);
 
 
 // =========================================================
@@ -23,59 +64,63 @@ const uploadStatus = document.getElementById("uploadStatus");
 
 async function sendMessage() {
 
-    const message = input.value.trim();
+    const message =
+        input.value.trim();
 
     if (message === "") {
         return;
     }
 
 
-    // -----------------------------------------------------
-    // Disable input while AI is responding
-    // -----------------------------------------------------
+    // Close attachment menu
+
+    closeAttachmentMenu();
+
+
+    // Disable controls
 
     input.disabled = true;
+
     sendButton.disabled = true;
 
 
     // -----------------------------------------------------
-    // Show user message
+    // User message
     // -----------------------------------------------------
 
-    const userMessage =
-        document.createElement("div");
-
-    userMessage.classList.add(
-        "message",
-        "user-message"
+    addMessage(
+        message,
+        "user"
     );
 
-    userMessage.textContent = message;
 
-    chatbox.appendChild(userMessage);
+    // Save locally
 
+    currentMessages.push({
+        role: "user",
+        content: message
+    });
 
-    // Clear input
 
     input.value = "";
 
-    chatbox.scrollTop =
-        chatbox.scrollHeight;
+    autoResizeInput();
+
+
+    scrollChat();
 
 
     // -----------------------------------------------------
-    // Show typing animation
+    // Typing
     // -----------------------------------------------------
 
-    const thinkingMessage =
+    const typingMessage =
         document.createElement("div");
 
-    thinkingMessage.classList.add(
-        "message",
-        "ai-message"
-    );
+    typingMessage.className =
+        "message ai-message";
 
-    thinkingMessage.innerHTML = `
+    typingMessage.innerHTML = `
         <div class="typing">
             <span></span>
             <span></span>
@@ -84,15 +129,14 @@ async function sendMessage() {
     `;
 
     chatbox.appendChild(
-        thinkingMessage
+        typingMessage
     );
 
-    chatbox.scrollTop =
-        chatbox.scrollHeight;
+    scrollChat();
 
 
     // -----------------------------------------------------
-    // Send request to backend
+    // Backend request
     // -----------------------------------------------------
 
     try {
@@ -115,16 +159,13 @@ async function sendMessage() {
             );
 
 
-        // -------------------------------------------------
-        // Check response
-        // -------------------------------------------------
-
         if (!response.ok) {
 
             throw new Error(
-                "Backend error: " +
+                "Backend error " +
                 response.status
             );
+
         }
 
 
@@ -132,43 +173,31 @@ async function sendMessage() {
             await response.json();
 
 
-        // Remove typing animation
-
-        thinkingMessage.remove();
+        typingMessage.remove();
 
 
-        // -------------------------------------------------
-        // Create AI message
-        // -------------------------------------------------
+        const reply =
+            data.reply ||
+            "The AI returned an empty response.";
 
-        const aiMessage =
-            document.createElement("div");
 
-        aiMessage.classList.add(
-            "message",
-            "ai-message"
+        addMessage(
+            reply,
+            "ai"
         );
 
 
-        if (data.reply) {
+        // Save AI message
 
-            aiMessage.textContent =
-                data.reply;
-
-        } else {
-
-            aiMessage.textContent =
-                "⚠️ The AI returned an empty response.";
-        }
+        currentMessages.push({
+            role: "assistant",
+            content: reply
+        });
 
 
-        chatbox.appendChild(
-            aiMessage
-        );
+        // Save conversation
 
-
-        chatbox.scrollTop =
-            chatbox.scrollHeight;
+        saveCurrentConversation();
 
 
     } catch (error) {
@@ -179,73 +208,124 @@ async function sendMessage() {
         );
 
 
-        // Remove typing message
-
-        thinkingMessage.remove();
+        typingMessage.remove();
 
 
-        // -------------------------------------------------
-        // Show error
-        // -------------------------------------------------
-
-        const errorMessage =
-            document.createElement("div");
-
-        errorMessage.classList.add(
-            "message",
-            "ai-message"
+        addMessage(
+            "❌ I couldn't connect to the AI backend. Please try again.",
+            "ai"
         );
 
-        errorMessage.textContent =
-            "❌ I couldn't connect to the AI backend. Please try again.";
-
-
-        chatbox.appendChild(
-            errorMessage
-        );
-
-
-        chatbox.scrollTop =
-            chatbox.scrollHeight;
     }
 
 
-    // -----------------------------------------------------
-    // Enable input again
-    // -----------------------------------------------------
+    // Enable again
 
     input.disabled = false;
+
     sendButton.disabled = false;
 
     input.focus();
+
 }
 
 
 // =========================================================
-// PDF UPLOAD / RAG
+// ADD MESSAGE
+// =========================================================
+
+function addMessage(
+    text,
+    role
+) {
+
+    const message =
+        document.createElement("div");
+
+    message.classList.add(
+        "message"
+    );
+
+
+    if (role === "user") {
+
+        message.classList.add(
+            "user-message"
+        );
+
+    } else {
+
+        message.classList.add(
+            "ai-message"
+        );
+
+    }
+
+
+    message.textContent =
+        text;
+
+
+    chatbox.appendChild(
+        message
+    );
+
+}
+
+
+// =========================================================
+// PDF SELECTION
+// =========================================================
+
+function selectPDF() {
+
+    closeAttachmentMenu();
+
+    pdfInput.click();
+
+}
+
+
+// =========================================================
+// PDF INPUT CHANGE
+// =========================================================
+
+pdfInput.addEventListener(
+    "change",
+    function () {
+
+        if (
+            pdfInput.files &&
+            pdfInput.files.length > 0
+        ) {
+
+            uploadPDF();
+
+        }
+
+    }
+);
+
+
+// =========================================================
+// UPLOAD PDF
 // =========================================================
 
 async function uploadPDF() {
 
     if (
-        !pdfInput ||
+        !pdfInput.files ||
         pdfInput.files.length === 0
     ) {
 
-        uploadStatus.textContent =
-            "⚠️ Please select a PDF first.";
-
         return;
+
     }
 
 
     const file =
         pdfInput.files[0];
 
-
-    // -----------------------------------------------------
-    // Check PDF
-    // -----------------------------------------------------
 
     if (
         file.type !== "application/pdf" &&
@@ -255,18 +335,15 @@ async function uploadPDF() {
     ) {
 
         uploadStatus.textContent =
-            "❌ Please select a PDF file.";
+            "Please select a PDF file.";
 
         return;
+
     }
 
 
-    // -----------------------------------------------------
-    // Upload status
-    // -----------------------------------------------------
-
     uploadStatus.textContent =
-        "⏳ Uploading PDF and building RAG...";
+        "Uploading PDF and building RAG...";
 
 
     try {
@@ -285,6 +362,7 @@ async function uploadPDF() {
                 BACKEND_URL + "/upload",
                 {
                     method: "POST",
+
                     body: formData
                 }
             );
@@ -293,9 +371,9 @@ async function uploadPDF() {
         if (!response.ok) {
 
             throw new Error(
-                "Upload error: " +
-                response.status
+                "Upload failed"
             );
+
         }
 
 
@@ -303,105 +381,157 @@ async function uploadPDF() {
             await response.json();
 
 
-        // -------------------------------------------------
-        // Success
-        // -------------------------------------------------
-
-        if (data.success) {
-
-            uploadStatus.textContent =
-                "✅ " +
-                data.message +
-                " | " +
-                data.chunks_added +
-                " chunks added.";
-
-
-            // Clear file selector
-
-            pdfInput.value = "";
+        uploadStatus.textContent =
+            "✓ " +
+            (
+                data.message ||
+                "PDF uploaded successfully"
+            ) +
+            (
+                data.chunks_added
+                    ? " • " +
+                      data.chunks_added +
+                      " chunks"
+                    : ""
+            );
 
 
-        } else {
-
-            uploadStatus.textContent =
-                "❌ " +
-                data.message;
-        }
+        pdfInput.value = "";
 
 
     } catch (error) {
 
         console.error(
-            "PDF UPLOAD ERROR:",
+            "PDF ERROR:",
             error
         );
 
 
         uploadStatus.textContent =
-            "❌ Could not upload PDF. Check that the backend is running.";
+            "❌ Could not upload PDF.";
+
     }
+
 }
 
 
 // =========================================================
-// NEW CHAT / RESET
+// IMAGE SELECTION
+// =========================================================
+
+function selectImage() {
+
+    closeAttachmentMenu();
+
+    imageInput.click();
+
+}
+
+
+// =========================================================
+// IMAGE INPUT
+// =========================================================
+
+imageInput.addEventListener(
+    "change",
+    function () {
+
+        if (
+            imageInput.files &&
+            imageInput.files.length > 0
+        ) {
+
+            const file =
+                imageInput.files[0];
+
+
+            uploadStatus.textContent =
+                "Image selected. Vision integration will be added next.";
+
+
+            imageInput.value = "";
+
+        }
+
+    }
+);
+
+
+// =========================================================
+// ATTACHMENT MENU
+// =========================================================
+
+function toggleAttachmentMenu() {
+
+    attachmentMenu.classList.toggle(
+        "show"
+    );
+
+}
+
+
+function closeAttachmentMenu() {
+
+    attachmentMenu.classList.remove(
+        "show"
+    );
+
+}
+
+
+// =========================================================
+// CLICK OUTSIDE ATTACHMENT MENU
+// =========================================================
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        const plusButton =
+            document.getElementById(
+                "plusButton"
+            );
+
+
+        if (
+            attachmentMenu &&
+            !attachmentMenu.contains(event.target) &&
+            !plusButton.contains(event.target)
+        ) {
+
+            closeAttachmentMenu();
+
+        }
+
+    }
+);
+
+
+// =========================================================
+// NEW CHAT
 // =========================================================
 
 async function newChat() {
 
+    // Save existing conversation
+
+    if (
+        currentMessages.length > 0
+    ) {
+
+        saveCurrentConversation();
+
+    }
+
+
     try {
 
-        const response =
-            await fetch(
-                BACKEND_URL + "/reset",
-                {
-                    method: "POST"
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Reset failed"
-            );
-        }
-
-
-        // -------------------------------------------------
-        // Clear chat screen
-        // -------------------------------------------------
-
-        chatbox.innerHTML = `
-            <div class="welcome-section">
-
-                <div class="welcome-icon">
-                    🤖
-                </div>
-
-                <h2>
-                    How can I help you?
-                </h2>
-
-                <p>
-                    Ask me anything, or upload a PDF
-                    to use it as knowledge.
-                </p>
-
-            </div>
-
-            <div class="message ai-message">
-                👋 New chat started!
-                How can I help you?
-            </div>
-        `;
-
-
-        input.value = "";
-
-        input.focus();
-
+        await fetch(
+            BACKEND_URL + "/reset",
+            {
+                method: "POST"
+            }
+        );
 
     } catch (error) {
 
@@ -410,243 +540,595 @@ async function newChat() {
             error
         );
 
-
-        const errorMessage =
-            document.createElement("div");
-
-        errorMessage.classList.add(
-            "message",
-            "ai-message"
-        );
-
-        errorMessage.textContent =
-            "❌ Could not reset the conversation.";
-
-
-        chatbox.appendChild(
-            errorMessage
-        );
     }
+
+
+    // Clear current messages
+
+    currentMessages = [];
+
+
+    // Reset screen
+
+    chatbox.innerHTML = `
+
+        <div class="welcome">
+
+            <div class="welcome-logo">
+                AI
+            </div>
+
+            <h2>
+                How can I help you?
+            </h2>
+
+            <p>
+                Ask me anything or upload a document
+                to give me additional knowledge.
+            </p>
+
+        </div>
+
+        <div class="message ai-message">
+
+            Hello! I am your AI assistant.
+            How can I help you today?
+
+        </div>
+
+    `;
+
+
+    showSection(
+        "chat"
+    );
+
+
+    input.value = "";
+
+    autoResizeInput();
+
+    input.focus();
+
 }
 
 
 // =========================================================
-// SIDEBAR SECTION CONTROL
+// SAVE CURRENT CONVERSATION
 // =========================================================
 
-function showSection(section) {
+function saveCurrentConversation() {
 
-    // -----------------------------------------------------
-    // Get sidebar buttons
-    // -----------------------------------------------------
+    if (
+        currentMessages.length === 0
+    ) {
 
-    const navItems =
-        document.querySelectorAll(
-            ".sidebar .nav-item"
+        return;
+
+    }
+
+
+    const histories =
+        getHistories();
+
+
+    // Create title from first user message
+
+    const firstUserMessage =
+        currentMessages.find(
+            message =>
+                message.role === "user"
         );
 
 
-    // -----------------------------------------------------
-    // Remove active state
-    // -----------------------------------------------------
-
-    navItems.forEach(item => {
-        item.classList.remove("active");
-    });
+    const title =
+        firstUserMessage
+            ? firstUserMessage.content
+                .substring(0, 45)
+            : "New conversation";
 
 
-    // -----------------------------------------------------
-    // Section names
-    // -----------------------------------------------------
+    const conversation = {
 
-    const sectionNames = {
+        id:
+            Date.now(),
 
-        chat: "Chat",
+        title:
+            title,
 
-        history: "Chat History",
+        date:
+            new Date().toLocaleString(),
 
-        documents: "Documents / RAG",
-
-        vision: "Vision",
-
-        hardware: "Hardware",
-
-        settings: "Settings"
+        messages:
+            [...currentMessages]
 
     };
 
 
-    // -----------------------------------------------------
-    // Highlight selected section
-    // -----------------------------------------------------
-
-    navItems.forEach(item => {
-
-        const text =
-            item.innerText.trim();
-
-        if (
-            sectionNames[section] &&
-            text.includes(
-                sectionNames[section]
-            )
-        ) {
-
-            item.classList.add("active");
-        }
-
-    });
+    histories.unshift(
+        conversation
+    );
 
 
-    // -----------------------------------------------------
-    // Chat
-    // -----------------------------------------------------
+    // Keep latest 30
 
-    if (section === "chat") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent = "Chat";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Talk with your AI assistant";
-
-        input.focus();
-
-        return;
-    }
-
-
-    // -----------------------------------------------------
-    // Chat History
-    // -----------------------------------------------------
-
-    if (section === "history") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent =
-                "Chat History";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Your previous conversations";
-
-        alert(
-            "Chat History will be added in the next step."
+    const limited =
+        histories.slice(
+            0,
+            30
         );
 
-        return;
-    }
+
+    localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(
+            limited
+        )
+    );
 
 
-    // -----------------------------------------------------
-    // Documents / RAG
-    // -----------------------------------------------------
+    loadHistoryList();
 
-    if (section === "documents") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent =
-                "Documents / RAG";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Upload documents and use them as AI knowledge";
-
-        alert(
-            "Your PDF/RAG system is already connected. We will build the Documents page next."
-        );
-
-        return;
-    }
-
-
-    // -----------------------------------------------------
-    // Vision
-    // -----------------------------------------------------
-
-    if (section === "vision") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent =
-                "Vision";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Image understanding";
-
-        alert(
-            "Vision will be added later."
-        );
-
-        return;
-    }
-
-
-    // -----------------------------------------------------
-    // Hardware
-    // -----------------------------------------------------
-
-    if (section === "hardware") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent =
-                "Hardware";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Connect and control your AI hardware";
-
-        alert(
-            "Hardware control will be added after the website interface is ready."
-        );
-
-        return;
-    }
-
-
-    // -----------------------------------------------------
-    // Settings
-    // -----------------------------------------------------
-
-    if (section === "settings") {
-
-        document
-            .querySelector(".main-header h1")
-            .textContent =
-                "Settings";
-
-        document
-            .querySelector(".main-header p")
-            .textContent =
-                "Manage your AI assistant";
-
-        alert(
-            "Settings will be added later."
-        );
-
-        return;
-    }
 }
 
 
 // =========================================================
-// ENTER KEY
+// GET HISTORY
+// =========================================================
+
+function getHistories() {
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(
+                HISTORY_KEY
+            )
+        ) || [];
+
+    } catch {
+
+        return [];
+
+    }
+
+}
+
+
+// =========================================================
+// LOAD HISTORY LIST
+// =========================================================
+
+function loadHistoryList() {
+
+    const list =
+        document.getElementById(
+            "historyList"
+        );
+
+
+    if (!list) {
+        return;
+    }
+
+
+    const histories =
+        getHistories();
+
+
+    list.innerHTML = "";
+
+
+    if (
+        histories.length === 0
+    ) {
+
+        list.innerHTML = `
+
+            <div class="history-empty">
+
+                No conversations yet.
+
+                <br>
+
+                Start a new chat and your
+                conversations will appear here.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    histories.forEach(
+        conversation => {
+
+            const item =
+                document.createElement(
+                    "button"
+                );
+
+
+            item.className =
+                "history-item";
+
+
+            item.innerHTML = `
+
+                <div>
+
+                    <div class="history-title">
+
+                        ${escapeHTML(
+                            conversation.title
+                        )}
+
+                    </div>
+
+                    <div class="history-date">
+
+                        ${escapeHTML(
+                            conversation.date
+                        )}
+
+                    </div>
+
+                </div>
+
+                <div class="history-arrow">
+                    →
+                </div>
+
+            `;
+
+
+            item.onclick =
+                function () {
+
+                    restoreConversation(
+                        conversation.id
+                    );
+
+                };
+
+
+            list.appendChild(
+                item
+            );
+
+        }
+    );
+
+}
+
+
+// =========================================================
+// RESTORE CONVERSATION
+// =========================================================
+
+function restoreConversation(
+    id
+) {
+
+    const histories =
+        getHistories();
+
+
+    const conversation =
+        histories.find(
+            item =>
+                item.id === id
+        );
+
+
+    if (!conversation) {
+        return;
+    }
+
+
+    currentMessages =
+        [
+            ...conversation.messages
+        ];
+
+
+    chatbox.innerHTML = "";
+
+
+    currentMessages.forEach(
+        message => {
+
+            addMessage(
+                message.content,
+                message.role === "user"
+                    ? "user"
+                    : "ai"
+            );
+
+        }
+    );
+
+
+    showSection(
+        "chat"
+    );
+
+
+    scrollChat();
+
+}
+
+
+// =========================================================
+// CLEAR HISTORY
+// =========================================================
+
+function clearChatHistory() {
+
+    const confirmed =
+        confirm(
+            "Delete all saved chat history?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    localStorage.removeItem(
+        HISTORY_KEY
+    );
+
+
+    currentMessages = [];
+
+
+    loadHistoryList();
+
+}
+
+
+// =========================================================
+// HTML ESCAPE
+// =========================================================
+
+function escapeHTML(
+    text
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        text;
+
+
+    return div.innerHTML;
+
+}
+
+
+// =========================================================
+// SECTION NAVIGATION
+// =========================================================
+
+function showSection(
+    section
+) {
+
+    const sections = {
+
+        chat:
+            "chatSection",
+
+        history:
+            "historySection",
+
+        documents:
+            "documentsSection",
+
+        vision:
+            "visionSection",
+
+        hardware:
+            "hardwareSection",
+
+        settings:
+            "settingsSection"
+
+    };
+
+
+    // Hide all
+
+    document
+        .querySelectorAll(".section")
+        .forEach(
+            element => {
+
+                element.classList.remove(
+                    "active"
+                );
+
+            }
+        );
+
+
+    // Show selected
+
+    const target =
+        document.getElementById(
+            sections[section]
+        );
+
+
+    if (target) {
+
+        target.classList.add(
+            "active"
+        );
+
+    }
+
+
+    // Active sidebar button
+
+    document
+        .querySelectorAll(
+            ".nav-item"
+        )
+        .forEach(
+            item => {
+
+                item.classList.remove(
+                    "active"
+                );
+
+
+                if (
+                    item.dataset.section ===
+                    section
+                ) {
+
+                    item.classList.add(
+                        "active"
+                    );
+
+                }
+
+            }
+        );
+
+
+    // Header
+
+    const titles = {
+
+        chat: [
+            "Chat",
+            "AI Assistant"
+        ],
+
+        history: [
+            "Chat history",
+            "Your conversations"
+        ],
+
+        documents: [
+            "Documents",
+            "PDF & RAG"
+        ],
+
+        vision: [
+            "Vision",
+            "AI image understanding"
+        ],
+
+        hardware: [
+            "Hardware",
+            "AI hardware control"
+        ],
+
+        settings: [
+            "Settings",
+            "AI Assistant settings"
+        ]
+
+    };
+
+
+    document.getElementById(
+        "pageTitle"
+    ).textContent =
+        titles[section][0];
+
+
+    document.getElementById(
+        "pageSubtitle"
+    ).textContent =
+        titles[section][1];
+
+
+    // Close mobile sidebar
+
+    if (
+        window.innerWidth <= 700
+    ) {
+
+        document
+            .getElementById("sidebar")
+            .classList.remove(
+                "open"
+            );
+
+    }
+
+
+    if (
+        section === "history"
+    ) {
+
+        loadHistoryList();
+
+    }
+
+}
+
+
+// =========================================================
+// MOBILE SIDEBAR
+// =========================================================
+
+function toggleSidebar() {
+
+    document
+        .getElementById("sidebar")
+        .classList.toggle(
+            "open"
+        );
+
+}
+
+
+// =========================================================
+// AUTO RESIZE TEXTAREA
+// =========================================================
+
+function autoResizeInput() {
+
+    input.style.height =
+        "auto";
+
+
+    input.style.height =
+        Math.min(
+            input.scrollHeight,
+            150
+        ) + "px";
+
+}
+
+
+// =========================================================
+// TEXTAREA EVENTS
 // =========================================================
 
 input.addEventListener(
+    "input",
+    autoResizeInput
+);
+
+
+input.addEventListener(
     "keydown",
-    function(event) {
+    function (event) {
 
         if (
             event.key === "Enter" &&
@@ -655,12 +1137,27 @@ input.addEventListener(
 
             event.preventDefault();
 
-            if (!sendButton.disabled) {
+            if (
+                !sendButton.disabled
+            ) {
 
                 sendMessage();
 
             }
+
         }
 
     }
 );
+
+
+// =========================================================
+// SCROLL
+// =========================================================
+
+function scrollChat() {
+
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
+
+}
