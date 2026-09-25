@@ -374,6 +374,23 @@ async function newChat() {
         // -------------------------------------------------
 
         chatbox.innerHTML = `
+            <div class="welcome-section">
+
+                <div class="welcome-icon">
+                    🤖
+                </div>
+
+                <h2>
+                    How can I help you?
+                </h2>
+
+                <p>
+                    Ask me anything, or upload a PDF
+                    to use it as knowledge.
+                </p>
+
+            </div>
+
             <div class="message ai-message">
                 👋 New chat started!
                 How can I help you?
@@ -414,61 +431,212 @@ async function newChat() {
 
 
 // =========================================================
-// CREATE NEW CHAT BUTTON
+// SIDEBAR SECTION CONTROL
 // =========================================================
 
-const newChatButton =
-    document.createElement("button");
+function showSection(section) {
 
-newChatButton.textContent =
-    "🔄 New Chat";
+    // -----------------------------------------------------
+    // Get sidebar buttons
+    // -----------------------------------------------------
 
-newChatButton.type =
-    "button";
-
-newChatButton.style.padding =
-    "10px 16px";
-
-newChatButton.style.border =
-    "none";
-
-newChatButton.style.borderRadius =
-    "10px";
-
-newChatButton.style.background =
-    "#334155";
-
-newChatButton.style.color =
-    "white";
-
-newChatButton.style.fontSize =
-    "14px";
-
-newChatButton.style.fontWeight =
-    "600";
-
-newChatButton.style.cursor =
-    "pointer";
-
-newChatButton.onclick =
-    newChat;
+    const navItems =
+        document.querySelectorAll(
+            ".sidebar .nav-item"
+        );
 
 
-// Put New Chat button in header
+    // -----------------------------------------------------
+    // Remove active state
+    // -----------------------------------------------------
 
-const header =
-    document.querySelector(
-        ".chat-header"
-    );
+    navItems.forEach(item => {
+        item.classList.remove("active");
+    });
 
-if (header) {
 
-    header.style.position =
-        "relative";
+    // -----------------------------------------------------
+    // Section names
+    // -----------------------------------------------------
 
-    header.appendChild(
-        newChatButton
-    );
+    const sectionNames = {
+
+        chat: "Chat",
+
+        history: "Chat History",
+
+        documents: "Documents / RAG",
+
+        vision: "Vision",
+
+        hardware: "Hardware",
+
+        settings: "Settings"
+
+    };
+
+
+    // -----------------------------------------------------
+    // Highlight selected section
+    // -----------------------------------------------------
+
+    navItems.forEach(item => {
+
+        const text =
+            item.innerText.trim();
+
+        if (
+            sectionNames[section] &&
+            text.includes(
+                sectionNames[section]
+            )
+        ) {
+
+            item.classList.add("active");
+        }
+
+    });
+
+
+    // -----------------------------------------------------
+    // Chat
+    // -----------------------------------------------------
+
+    if (section === "chat") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent = "Chat";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Talk with your AI assistant";
+
+        input.focus();
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Chat History
+    // -----------------------------------------------------
+
+    if (section === "history") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent =
+                "Chat History";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Your previous conversations";
+
+        alert(
+            "Chat History will be added in the next step."
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Documents / RAG
+    // -----------------------------------------------------
+
+    if (section === "documents") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent =
+                "Documents / RAG";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Upload documents and use them as AI knowledge";
+
+        alert(
+            "Your PDF/RAG system is already connected. We will build the Documents page next."
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Vision
+    // -----------------------------------------------------
+
+    if (section === "vision") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent =
+                "Vision";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Image understanding";
+
+        alert(
+            "Vision will be added later."
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Hardware
+    // -----------------------------------------------------
+
+    if (section === "hardware") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent =
+                "Hardware";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Connect and control your AI hardware";
+
+        alert(
+            "Hardware control will be added after the website interface is ready."
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Settings
+    // -----------------------------------------------------
+
+    if (section === "settings") {
+
+        document
+            .querySelector(".main-header h1")
+            .textContent =
+                "Settings";
+
+        document
+            .querySelector(".main-header p")
+            .textContent =
+                "Manage your AI assistant";
+
+        alert(
+            "Settings will be added later."
+        );
+
+        return;
+    }
 }
 
 
@@ -488,8 +656,11 @@ input.addEventListener(
             event.preventDefault();
 
             if (!sendButton.disabled) {
+
                 sendMessage();
+
             }
         }
+
     }
 );
