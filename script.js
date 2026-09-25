@@ -52,6 +52,8 @@ let signupButton;
 let userEmail;
 let userAvatar;
 
+let sidebarOverlay;
+
 
 /* =========================================================
    4. CHAT HISTORY
@@ -112,6 +114,9 @@ document.addEventListener(
 
         userAvatar =
             document.getElementById("userAvatar");
+
+        sidebarOverlay =
+            document.getElementById("sidebarOverlay");
 
 
         /* PDF input */
@@ -298,6 +303,9 @@ function showLoginScreen() {
         appShell.hidden = true;
 
     }
+
+
+    closeSidebar();
 
 
     clearAuthMessage();
@@ -1011,10 +1019,6 @@ async function sendMessage() {
    16. ADD MESSAGE
    ========================================================= */
 
-/* =========================================================
-   16. ADD MESSAGE
-   ========================================================= */
-
 function addMessage(
     role,
     content
@@ -1409,6 +1413,14 @@ async function newChat() {
         userInput.focus();
 
     }
+
+
+    showSection(
+        "chat"
+    );
+
+
+    closeSidebar();
 
 
     try {
@@ -2002,6 +2014,38 @@ function showSection(
     }
 
 
+    /* On phone, picking a section from the sidebar
+       should close the sidebar so you see the section. */
+
+    closeSidebar();
+
+}
+
+
+/* =========================================================
+   30b. MOBILE SIDEBAR OPEN / CLOSE
+   ========================================================= */
+
+function toggleSidebar() {
+
+    document.body.classList.toggle(
+        "sidebar-open"
+    );
+
+}
+
+
+function openSidebar() {
+
+    document.body.classList.add(
+        "sidebar-open"
+    );
+
+}
+
+
+function closeSidebar() {
+
     document.body.classList.remove(
         "sidebar-open"
     );
@@ -2076,7 +2120,7 @@ function escapeHTML(
 
 
 /* =========================================================
-   34. CLOSE ATTACHMENT MENU
+   34. CLOSE ATTACHMENT MENU ON OUTSIDE CLICK
    ========================================================= */
 
 document.addEventListener(
@@ -2110,6 +2154,24 @@ document.addEventListener(
             attachmentMenu.classList.remove(
                 "show"
             );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   35. CLOSE MOBILE SIDEBAR WITH ESCAPE KEY
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (event.key === "Escape") {
+
+            closeSidebar();
 
         }
 
