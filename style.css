@@ -12,12 +12,23 @@
     --bg: #0b0b0f;
     --sidebar: #111113;
     --sidebar-hover: #1b1b1f;
+    --card: #151518;
+    --card-hover: #1d1d21;
     --border: #2a2a2e;
-    --text: #ececec;
-    --muted: #9b9ba1;
+    --border-light: #36363b;
 
-    --blue: #2563eb;
-    --blue-hover: #1d4ed8;
+    --text: #ececec;
+    --text-soft: #d8d8dc;
+    --muted: #85858c;
+    --muted-dark: #626269;
+
+    --green: #22c55e;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
 }
 
 body {
@@ -35,17 +46,10 @@ body {
     overflow: hidden;
 }
 
-
-/* =========================================================
-   APP
-   ========================================================= */
-
-.app {
-    display: flex;
-
-    width: 100%;
-
-    height: 100vh;
+button,
+input,
+textarea {
+    font-family: inherit;
 }
 
 
@@ -58,7 +62,7 @@ body {
 
     inset: 0;
 
-    z-index: 1000;
+    z-index: 9999;
 
     display: flex;
 
@@ -71,12 +75,7 @@ body {
     background: var(--bg);
 }
 
-
-/* =========================================================
-   AUTH CONTAINER
-   ========================================================= */
-
-.auth-container {
+.auth-card {
     width: 100%;
 
     max-width: 390px;
@@ -91,13 +90,8 @@ body {
 
     box-shadow:
         0 20px 60px
-        rgba(0, 0, 0, .35);
+        rgba(0, 0, 0, .4);
 }
-
-
-/* =========================================================
-   AUTH LOGO
-   ========================================================= */
 
 .auth-logo {
     width: 48px;
@@ -118,34 +112,25 @@ body {
 
     border: 1px solid #333338;
 
-    color: #ededed;
-
-    font-size: 12px;
-
-    font-weight: 700;
+    font-size: 23px;
 }
 
+.auth-title {
+    margin: 0;
 
-/* =========================================================
-   AUTH HEADER
-   ========================================================= */
-
-.auth-header {
     text-align: center;
 
-    margin-bottom: 25px;
-}
+    color: #eeeeef;
 
-.auth-header h1 {
     font-size: 22px;
 
     font-weight: 600;
-
-    letter-spacing: -.3px;
 }
 
-.auth-header p {
-    margin-top: 7px;
+.auth-subtitle {
+    margin: 8px 0 24px;
+
+    text-align: center;
 
     color: #85858c;
 
@@ -178,17 +163,19 @@ body {
 .auth-tab {
     flex: 1;
 
-    height: 34px;
-
     border: none;
-
-    border-radius: 6px;
 
     background: transparent;
 
     color: #77777e;
 
+    padding: 9px;
+
+    border-radius: 6px;
+
     font-size: 12px;
+
+    font-weight: 500;
 
     cursor: pointer;
 
@@ -196,7 +183,7 @@ body {
 }
 
 .auth-tab:hover {
-    color: #d8d8dc;
+    color: #eeeeef;
 }
 
 .auth-tab.active {
@@ -211,22 +198,18 @@ body {
    ========================================================= */
 
 .auth-form {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 14px;
+    display: none;
 }
 
-.auth-field {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 6px;
+.auth-form.active {
+    display: block;
 }
 
-.auth-field label {
+.auth-label {
+    display: block;
+
+    margin-bottom: 6px;
+
     color: #b8b8bd;
 
     font-size: 11px;
@@ -234,12 +217,14 @@ body {
     font-weight: 500;
 }
 
-.auth-field input {
+.auth-input {
     width: 100%;
 
     height: 42px;
 
     padding: 0 12px;
+
+    margin-bottom: 14px;
 
     border: 1px solid #303035;
 
@@ -251,38 +236,33 @@ body {
 
     color: #eeeeef;
 
-    font-family: inherit;
-
     font-size: 13px;
 
     transition: .18s;
 }
 
-.auth-field input::placeholder {
+.auth-input::placeholder {
     color: #626269;
 }
 
-.auth-field input:hover {
+.auth-input:hover {
     border-color: #3a3a40;
 }
 
-.auth-field input:focus {
+.auth-input:focus {
     border-color: #505057;
 
     background: #1b1b1f;
+
+    box-shadow: none;
 }
 
-
-/* =========================================================
-   AUTH SUBMIT BUTTON
-   ========================================================= */
-
-.auth-submit {
+.auth-button {
     width: 100%;
 
     height: 42px;
 
-    margin-top: 5px;
+    margin-top: 4px;
 
     border: none;
 
@@ -291,8 +271,6 @@ body {
     background: #eeeeef;
 
     color: #111113;
-
-    font-family: inherit;
 
     font-size: 13px;
 
@@ -303,62 +281,79 @@ body {
     transition: .2s;
 }
 
-.auth-submit:hover {
+.auth-button:hover {
     background: #ffffff;
 
     transform: translateY(-1px);
 }
 
-.auth-submit:active {
+.auth-button:active {
     transform: translateY(0);
 }
 
-.auth-submit:disabled {
-    opacity: .45;
+.auth-button:disabled {
+    opacity: .4;
 
     cursor: not-allowed;
 
     transform: none;
 }
 
-
-/* =========================================================
-   AUTH MESSAGE
-   ========================================================= */
-
 .auth-message {
-    min-height: 16px;
+    min-height: 18px;
 
     margin-top: 12px;
+
+    text-align: center;
 
     color: #85858c;
 
     font-size: 11px;
 
     line-height: 1.5;
-
-    text-align: center;
 }
 
+.auth-message.error {
+    color: #ef4444;
+}
 
-/* =========================================================
-   AUTH FOOTER
-   ========================================================= */
+.auth-message.success {
+    color: #22c55e;
+}
 
 .auth-footer {
-    margin-top: 22px;
+    margin-top: 20px;
 
-    padding-top: 16px;
+    padding-top: 15px;
 
     border-top: 1px solid #242428;
+
+    text-align: center;
 
     color: #55555b;
 
     font-size: 9px;
+}
 
-    line-height: 1.5;
+.auth-footer strong {
+    color: #818187;
 
-    text-align: center;
+    font-weight: 500;
+}
+
+
+/* =========================================================
+   MAIN APPLICATION
+   ========================================================= */
+
+.app {
+    width: 100%;
+
+    height: 100vh;
+
+    display: flex;
+
+    background: var(--bg);
 }
 
 
@@ -386,6 +381,10 @@ body {
     border-right: 1px solid var(--border);
 }
 
+.sidebar-top {
+    width: 100%;
+}
+
 
 /* =========================================================
    BRAND
@@ -401,7 +400,7 @@ body {
     padding: 9px 8px 18px;
 }
 
-.brand-logo {
+.brand-icon {
     width: 32px;
 
     height: 32px;
@@ -416,14 +415,12 @@ body {
 
     background: #2b2b30;
 
-    color: white;
-
-    font-size: 11px;
-
-    font-weight: 700;
+    font-size: 16px;
 }
 
-.brand-name {
+.brand-text {
+    color: #eeeeef;
+
     font-size: 14px;
 
     font-weight: 600;
@@ -434,7 +431,7 @@ body {
    NEW CHAT
    ========================================================= */
 
-.new-chat {
+.new-chat-btn {
     width: 100%;
 
     height: 42px;
@@ -443,7 +440,7 @@ body {
 
     align-items: center;
 
-    gap: 11px;
+    gap: 10px;
 
     padding: 0 12px;
 
@@ -462,27 +459,19 @@ body {
     transition: .2s;
 }
 
-.new-chat:hover {
+.new-chat-btn:hover {
     background: var(--sidebar-hover);
 }
 
-.new-chat svg {
-    width: 18px;
+.new-chat-btn span:first-child {
+    font-size: 19px;
 
-    height: 18px;
-
-    fill: none;
-
-    stroke: currentColor;
-
-    stroke-width: 1.8;
-
-    stroke-linecap: round;
+    line-height: 1;
 }
 
 
 /* =========================================================
-   NAVIGATION
+   SIDEBAR NAVIGATION
    ========================================================= */
 
 .sidebar-nav {
@@ -498,7 +487,7 @@ body {
 
     align-items: center;
 
-    gap: 12px;
+    gap: 11px;
 
     padding: 0 11px;
 
@@ -533,22 +522,18 @@ body {
     color: #ffffff;
 }
 
-.nav-item svg {
-    width: 18px;
+.nav-icon {
+    width: 20px;
 
-    height: 18px;
+    display: flex;
 
-    flex-shrink: 0;
+    align-items: center;
 
-    fill: none;
+    justify-content: center;
 
-    stroke: currentColor;
+    font-size: 15px;
 
-    stroke-width: 1.6;
-
-    stroke-linecap: round;
-
-    stroke-linejoin: round;
+    opacity: .85;
 }
 
 
@@ -570,17 +555,17 @@ body {
 
     align-items: center;
 
-    gap: 10px;
+    gap: 9px;
 
-    padding: 10px 9px;
+    padding: 9px;
 
-    margin-bottom: 5px;
+    margin-bottom: 7px;
+
+    border: 1px solid #242428;
 
     border-radius: 9px;
 
     background: #171719;
-
-    border: 1px solid #242428;
 }
 
 .user-avatar {
@@ -607,10 +592,18 @@ body {
     font-weight: 600;
 }
 
-.user-info {
+.user-details {
     flex: 1;
 
     min-width: 0;
+}
+
+.user-label {
+    margin-bottom: 2px;
+
+    color: #626269;
+
+    font-size: 9px;
 }
 
 .user-email {
@@ -624,19 +617,6 @@ body {
 
     text-overflow: ellipsis;
 }
-
-.user-label {
-    margin-top: 3px;
-
-    color: #626269;
-
-    font-size: 9px;
-}
-
-
-/* =========================================================
-   LOGOUT BUTTON
-   ========================================================= */
 
 .logout-button {
     width: 30px;
@@ -659,6 +639,8 @@ body {
 
     color: #77777e;
 
+    font-size: 16px;
+
     cursor: pointer;
 
     transition: .18s;
@@ -670,41 +652,17 @@ body {
     color: #eeeeef;
 }
 
-.logout-button svg {
-    width: 16px;
-
-    height: 16px;
-
-    fill: none;
-
-    stroke: currentColor;
-
-    stroke-width: 1.6;
-
-    stroke-linecap: round;
-
-    stroke-linejoin: round;
-}
-
 
 /* =========================================================
-   CREATOR
+   SIDEBAR FOOTER
    ========================================================= */
 
-.creator {
-    padding: 13px 11px 5px;
+.sidebar-footer {
+    padding: 4px 9px;
 
     color: #66666c;
 
-    font-size: 10px;
-
-    text-transform: lowercase;
-}
-
-.creator strong {
-    color: #818187;
-
-    font-weight: 500;
+    font-size: 9px;
 }
 
 .online-status {
@@ -714,15 +672,14 @@ body {
 
     gap: 7px;
 
-    padding: 7px 11px;
+    margin-top: 7px;
 
     color: #68686f;
 
     font-size: 10px;
 }
 
-.online-status span,
-.top-status span {
+.status-dot {
     width: 6px;
 
     height: 6px;
@@ -738,10 +695,10 @@ body {
 
 
 /* =========================================================
-   MAIN
+   MAIN CONTENT
    ========================================================= */
 
-.main {
+.main-content {
     flex: 1;
 
     min-width: 0;
@@ -767,14 +724,14 @@ body {
 
     align-items: center;
 
-    justify-content: space-between;
-
     padding: 0 24px;
 
     border-bottom: 1px solid var(--border);
 }
 
-.topbar h1 {
+.topbar h2 {
+    color: #eeeeef;
+
     font-size: 15px;
 
     font-weight: 600;
@@ -788,56 +745,22 @@ body {
     font-size: 10px;
 }
 
-.top-status {
-    display: flex;
-
-    align-items: center;
-
-    gap: 7px;
-
-    color: #77777e;
-
-    font-size: 10px;
-}
-
-.mobile-menu {
-    display: none;
-
-    border: none;
-
-    background: transparent;
-
-    color: white;
-
-    cursor: pointer;
-}
-
-.mobile-menu svg {
-    width: 20px;
-
-    height: 20px;
-
-    fill: none;
-
-    stroke: currentColor;
-
-    stroke-width: 1.7;
-}
-
 
 /* =========================================================
-   SECTIONS
+   CONTENT SECTIONS
    ========================================================= */
 
-.section {
+.content-section {
     display: none;
 
     flex: 1;
 
     min-height: 0;
+
+    overflow: hidden;
 }
 
-.section.active {
+.content-section.active {
     display: flex;
 
     flex-direction: column;
@@ -845,7 +768,7 @@ body {
 
 
 /* =========================================================
-   CHATBOX
+   CHAT
    ========================================================= */
 
 .chatbox {
@@ -870,10 +793,10 @@ body {
 
 
 /* =========================================================
-   WELCOME
+   WELCOME MESSAGE
    ========================================================= */
 
-.welcome {
+.welcome-message {
     text-align: center;
 
     margin-top: 13vh;
@@ -881,7 +804,7 @@ body {
     margin-bottom: 20px;
 }
 
-.welcome-logo {
+.welcome-icon {
     width: 48px;
 
     height: 48px;
@@ -898,16 +821,14 @@ body {
 
     background: #25252a;
 
-    color: #ededed;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
     border: 1px solid #333338;
+
+    font-size: 22px;
 }
 
-.welcome h2 {
+.welcome-message h2 {
+    color: #eeeeef;
+
     font-size: 25px;
 
     font-weight: 600;
@@ -915,7 +836,7 @@ body {
     letter-spacing: -.4px;
 }
 
-.welcome p {
+.welcome-message p {
     max-width: 480px;
 
     margin: 10px auto 0;
@@ -929,7 +850,7 @@ body {
 
 
 /* =========================================================
-   MESSAGES
+   CHAT MESSAGES
    ========================================================= */
 
 .message {
@@ -1031,10 +952,10 @@ body {
 
 
 /* =========================================================
-   COMPOSER AREA
+   COMPOSER CONTAINER
    ========================================================= */
 
-.composer-area {
+.composer-container {
     width: 100%;
 
     max-width: 850px;
@@ -1081,10 +1002,10 @@ body {
 
 
 /* =========================================================
-   PLUS BUTTON
+   ATTACHMENT BUTTON
    ========================================================= */
 
-.plus-button {
+.attachment-btn {
     width: 38px;
 
     height: 38px;
@@ -1105,27 +1026,17 @@ body {
 
     color: #b5b5bb;
 
+    font-size: 24px;
+
+    line-height: 1;
+
     cursor: pointer;
 }
 
-.plus-button:hover {
+.attachment-btn:hover {
     background: #29292e;
 
     color: white;
-}
-
-.plus-button svg {
-    width: 20px;
-
-    height: 20px;
-
-    fill: none;
-
-    stroke: currentColor;
-
-    stroke-width: 1.7;
-
-    stroke-linecap: round;
 }
 
 
@@ -1168,7 +1079,7 @@ body {
    SEND BUTTON
    ========================================================= */
 
-.send-button {
+.send-btn {
     width: 38px;
 
     height: 38px;
@@ -1189,39 +1100,25 @@ body {
 
     color: #111113;
 
+    font-size: 20px;
+
     cursor: pointer;
 
     transition: .2s;
 }
 
-.send-button:hover {
-    background: white;
+.send-btn:hover {
+    background: #ffffff;
 
     transform: translateY(-1px);
 }
 
-.send-button:disabled {
+.send-btn:disabled {
     opacity: .35;
 
     cursor: not-allowed;
 
     transform: none;
-}
-
-.send-button svg {
-    width: 19px;
-
-    height: 19px;
-
-    fill: none;
-
-    stroke: currentColor;
-
-    stroke-width: 1.8;
-
-    stroke-linecap: round;
-
-    stroke-linejoin: round;
 }
 
 
@@ -1264,7 +1161,7 @@ body {
 
     align-items: center;
 
-    gap: 11px;
+    gap: 10px;
 
     padding: 10px;
 
@@ -1274,7 +1171,9 @@ body {
 
     background: transparent;
 
-    color: white;
+    color: #eeeeef;
+
+    font-size: 12px;
 
     text-align: left;
 
@@ -1283,58 +1182,6 @@ body {
 
 .attachment-menu button:hover {
     background: #2b2b30;
-}
-
-.attachment-icon {
-    width: 34px;
-
-    height: 34px;
-
-    flex-shrink: 0;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    border-radius: 8px;
-
-    background: #2b2b30;
-}
-
-.attachment-icon svg {
-    width: 18px;
-
-    height: 18px;
-
-    fill: none;
-
-    stroke: #d8d8dc;
-
-    stroke-width: 1.5;
-
-    stroke-linecap: round;
-
-    stroke-linejoin: round;
-}
-
-.attachment-menu strong {
-    display: block;
-
-    font-size: 12px;
-
-    font-weight: 500;
-}
-
-.attachment-menu small {
-    display: block;
-
-    margin-top: 3px;
-
-    color: #85858c;
-
-    font-size: 10px;
 }
 
 
@@ -1354,50 +1201,38 @@ body {
     text-align: center;
 }
 
-.composer-note {
-    margin-top: 6px;
-
-    text-align: center;
-
-    color: #55555b;
-
-    font-size: 9px;
-}
-
 
 /* =========================================================
-   GENERIC PAGES
+   SECTION HEADER
    ========================================================= */
 
-.page-container {
+.section-header {
     width: 100%;
 
     max-width: 850px;
 
     margin: 0 auto;
 
-    padding: 35px 25px;
+    padding: 35px 25px 20px;
 
-    overflow-y: auto;
-}
-
-.page-title {
     display: flex;
 
-    align-items: center;
+    align-items: flex-start;
 
     justify-content: space-between;
 
-    margin-bottom: 25px;
+    gap: 20px;
 }
 
-.page-title h2 {
+.section-header h2 {
+    color: #eeeeef;
+
     font-size: 22px;
 
     font-weight: 600;
 }
 
-.page-title p {
+.section-header p {
     margin-top: 5px;
 
     color: #818188;
@@ -1407,10 +1242,68 @@ body {
 
 
 /* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.primary-btn,
+.danger-btn {
+    height: 36px;
+
+    padding: 0 13px;
+
+    border-radius: 8px;
+
+    font-size: 12px;
+
+    cursor: pointer;
+
+    white-space: nowrap;
+
+    transition: .18s;
+}
+
+.primary-btn {
+    border: none;
+
+    background: #eeeeef;
+
+    color: #111113;
+}
+
+.primary-btn:hover {
+    background: #ffffff;
+}
+
+.danger-btn {
+    border: 1px solid #303035;
+
+    background: transparent;
+
+    color: #aaaab0;
+}
+
+.danger-btn:hover {
+    background: #1d1d21;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
    HISTORY
    ========================================================= */
 
 .history-list {
+    width: 100%;
+
+    max-width: 850px;
+
+    margin: 0 auto;
+
+    padding: 0 25px 30px;
+
+    overflow-y: auto;
+
     display: flex;
 
     flex-direction: column;
@@ -1442,6 +1335,8 @@ body {
     align-items: center;
 
     justify-content: space-between;
+
+    gap: 15px;
 
     border: 1px solid #29292e;
 
@@ -1482,53 +1377,30 @@ body {
 
 
 /* =========================================================
-   BUTTONS
+   DOCUMENTS
    ========================================================= */
 
-.primary-button,
-.clear-history {
-    height: 36px;
+.documents-container {
+    width: 100%;
 
-    padding: 0 13px;
+    max-width: 850px;
 
-    border-radius: 8px;
+    margin: 0 auto;
 
-    font-size: 12px;
+    padding: 0 25px 30px;
 
-    cursor: pointer;
-}
-
-.primary-button {
-    border: none;
-
-    background: #eeeeef;
-
-    color: #111113;
-}
-
-.clear-history {
-    border: 1px solid #303035;
-
-    background: transparent;
-
-    color: #aaaab0;
-}
-
-.clear-history:hover {
-    background: #1d1d21;
-
-    color: white;
+    overflow-y: auto;
 }
 
 
 /* =========================================================
-   FEATURE CARD
+   EMPTY STATE
    ========================================================= */
 
-.feature-card {
+.empty-state {
     max-width: 500px;
 
-    margin: 80px auto;
+    margin: 70px auto;
 
     padding: 35px;
 
@@ -1541,7 +1413,7 @@ body {
     background: #151518;
 }
 
-.feature-logo {
+.empty-icon {
     width: 48px;
 
     height: 48px;
@@ -1557,30 +1429,20 @@ body {
     border-radius: 11px;
 
     background: #25252a;
+
+    font-size: 21px;
 }
 
-.feature-logo svg {
-    width: 22px;
+.empty-state h3 {
+    color: #eeeeef;
 
-    height: 22px;
+    font-size: 18px;
 
-    fill: none;
-
-    stroke: #dddde1;
-
-    stroke-width: 1.5;
-
-    stroke-linecap: round;
-
-    stroke-linejoin: round;
+    font-weight: 600;
 }
 
-.feature-card h2 {
-    font-size: 20px;
-}
-
-.feature-card p {
-    margin: 10px auto 20px;
+.empty-state p {
+    margin: 10px auto 0;
 
     max-width: 400px;
 
@@ -1589,20 +1451,6 @@ body {
     font-size: 13px;
 
     line-height: 1.6;
-}
-
-.coming-soon {
-    display: inline-block;
-
-    padding: 5px 9px;
-
-    border-radius: 6px;
-
-    background: #242428;
-
-    color: #85858c;
-
-    font-size: 10px;
 }
 
 
@@ -1630,10 +1478,23 @@ body {
 
 
 /* =========================================================
+   HIDDEN
+   ========================================================= */
+
+[hidden] {
+    display: none !important;
+}
+
+
+/* =========================================================
    MOBILE
    ========================================================= */
 
 @media (max-width: 700px) {
+
+    body {
+        overflow: hidden;
+    }
 
     .sidebar {
         position: fixed;
@@ -1653,52 +1514,74 @@ body {
             rgba(0, 0, 0, .4);
     }
 
+    /*
+       If your JavaScript later adds .open
+       to the sidebar, it will slide in.
+    */
+
     .sidebar.open {
         left: 0;
     }
 
-    .mobile-menu {
-        display: flex;
-
-        align-items: center;
-
-        justify-content: center;
-
-        margin-right: 12px;
-    }
-
     .topbar {
-        justify-content: flex-start;
-
-        padding: 0 14px;
-    }
-
-    .top-status {
-        margin-left: auto;
+        padding: 0 16px;
     }
 
     .chatbox {
-        padding: 20px 14px;
+        padding: 20px 14px 15px;
     }
 
-    .welcome {
+    .welcome-message {
         margin-top: 8vh;
     }
 
-    .welcome h2 {
+    .welcome-message h2 {
         font-size: 22px;
+    }
+
+    .welcome-message p {
+        font-size: 12px;
+
+        padding: 0 5px;
     }
 
     .message {
         max-width: 88%;
     }
 
-    .composer-area {
+    .composer-container {
         padding: 5px 12px 12px;
     }
 
-    .page-container {
-        padding: 25px 14px;
+    .composer {
+        border-radius: 13px;
+    }
+
+    .section-header {
+        padding: 25px 14px 18px;
+
+        align-items: flex-start;
+    }
+
+    .section-header h2 {
+        font-size: 20px;
+    }
+
+    .history-list,
+    .documents-container {
+        padding-left: 14px;
+
+        padding-right: 14px;
+    }
+
+    .history-item {
+        padding: 12px;
+    }
+
+    .empty-state {
+        margin: 45px 14px;
+
+        padding: 28px 20px;
     }
 
     /* Authentication */
@@ -1707,7 +1590,7 @@ body {
         padding: 14px;
     }
 
-    .auth-container {
+    .auth-card {
         max-width: 100%;
 
         padding: 25px 20px;
@@ -1715,7 +1598,7 @@ body {
         border-radius: 14px;
     }
 
-    .auth-header h1 {
+    .auth-title {
         font-size: 20px;
     }
 
@@ -1735,32 +1618,24 @@ body {
 
 @media (max-width: 380px) {
 
-    .auth-container {
+    .auth-card {
         padding: 22px 17px;
     }
 
-    .auth-header {
-        margin-bottom: 20px;
-    }
-
-    .auth-header h1 {
+    .auth-title {
         font-size: 19px;
     }
 
-    .auth-field input {
+    .auth-input {
         height: 40px;
     }
 
-    .auth-submit {
+    .auth-button {
         height: 40px;
     }
 
-    .composer {
-        border-radius: 13px;
-    }
-
-    .plus-button,
-    .send-button {
+    .attachment-btn,
+    .send-btn {
         width: 36px;
 
         height: 36px;
