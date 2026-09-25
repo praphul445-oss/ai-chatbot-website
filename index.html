@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -15,36 +16,53 @@
         rel="stylesheet"
         href="style.css"
     >
+
 </head>
+
 
 <body>
 
-    <div class="app-container">
+<div class="app">
 
-        <!-- ================= SIDEBAR ================= -->
 
-        <aside class="sidebar">
+    <!-- =====================================================
+         SIDEBAR
+         ===================================================== -->
 
-            <div class="sidebar-header">
-                <div class="logo">
-                    🤖
+    <aside class="sidebar" id="sidebar">
+
+
+        <!-- LOGO -->
+
+        <div class="sidebar-top">
+
+            <div class="brand">
+
+                <div class="brand-logo">
+                    AI
                 </div>
 
-                <div>
-                    <h2>My AI Assistant</h2>
-                    <span>AI Chatbot</span>
+                <div class="brand-name">
+                    My AI Assistant
                 </div>
+
             </div>
 
 
             <!-- NEW CHAT -->
 
             <button
-                class="new-chat-button"
+                class="new-chat"
                 onclick="newChat()"
             >
-                <span>＋</span>
-                New Chat
+
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 5v14"/>
+                    <path d="M5 12h14"/>
+                </svg>
+
+                <span>New chat</span>
+
             </button>
 
 
@@ -52,89 +70,233 @@
 
             <nav class="sidebar-nav">
 
-                <button class="nav-item active">
-                    <span>💬</span>
+
+                <button
+                    class="nav-item active"
+                    data-section="chat"
+                    onclick="showSection('chat')"
+                >
+
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5
+                        8 8 0 0 1-3.4-.76L4 20l1.76-4.1
+                        A7.5 7.5 0 1 1 20 11.5Z"/>
+                    </svg>
+
                     <span>Chat</span>
+
                 </button>
 
-                <button class="nav-item">
-                    <span>🕘</span>
-                    <span>Chat History</span>
+
+                <button
+                    class="nav-item"
+                    data-section="history"
+                    onclick="showSection('history')"
+                >
+
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="8"/>
+                        <path d="M12 7v5l3 2"/>
+                    </svg>
+
+                    <span>Chat history</span>
+
                 </button>
 
-                <button class="nav-item">
-                    <span>📄</span>
-                    <span>Documents / RAG</span>
+
+                <button
+                    class="nav-item"
+                    data-section="documents"
+                    onclick="showSection('documents')"
+                >
+
+                    <svg viewBox="0 0 24 24">
+                        <path d="M6 3h8l4 4v14H6z"/>
+                        <path d="M14 3v5h5"/>
+                        <path d="M9 13h6"/>
+                        <path d="M9 17h5"/>
+                    </svg>
+
+                    <span>Documents</span>
+
                 </button>
 
-                <button class="nav-item">
-                    <span>🖼️</span>
+
+                <button
+                    class="nav-item"
+                    data-section="vision"
+                    onclick="showSection('vision')"
+                >
+
+                    <svg viewBox="0 0 24 24">
+                        <rect
+                            x="3"
+                            y="5"
+                            width="18"
+                            height="14"
+                            rx="2"
+                        />
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="3"
+                        />
+                    </svg>
+
                     <span>Vision</span>
+
                 </button>
 
-                <button class="nav-item">
-                    <span>🔌</span>
+
+                <button
+                    class="nav-item"
+                    data-section="hardware"
+                    onclick="showSection('hardware')"
+                >
+
+                    <svg viewBox="0 0 24 24">
+                        <rect
+                            x="8"
+                            y="8"
+                            width="8"
+                            height="8"
+                            rx="1"
+                        />
+                        <path d="M4 10v4M20 10v4"/>
+                        <path d="M10 4v4M14 4v4"/>
+                        <path d="M10 16v4M14 16v4"/>
+                    </svg>
+
                     <span>Hardware</span>
+
                 </button>
 
             </nav>
 
+        </div>
 
-            <!-- SIDEBAR BOTTOM -->
 
-            <div class="sidebar-bottom">
+        <!-- SIDEBAR BOTTOM -->
 
-                <button class="nav-item">
-                    <span>⚙️</span>
-                    <span>Settings</span>
-                </button>
+        <div class="sidebar-bottom">
 
-                <div class="status">
 
-                    <span class="status-dot"></span>
+            <button
+                class="nav-item"
+                data-section="settings"
+                onclick="showSection('settings')"
+            >
 
-                    <span>AI Online</span>
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19 12a7 7 0 0 0-.2-1.7
+                    l2-1.1-2-3.4-2 1.1
+                    A7 7 0 0 0 14.5 6V3h-5v3
+                    A7 7 0 0 0 7.2 6.9L5.2 5.8
+                    l-2 3.4 2 1.1A7 7 0 0 0
+                    5 12c0 .6.1 1.2.2 1.7l-2 1.1
+                    2 3.4 2-1.1a7 7 0 0 0
+                    2.3 1.3v3h5v-3a7 7 0 0 0
+                    2.3-1.3l2 1.1 2-3.4-2-1.1
+                    c.1-.5.2-1.1.2-1.7Z"/>
+                </svg>
 
-                </div>
+                <span>Settings</span>
+
+            </button>
+
+
+            <div class="creator">
+
+                created by <strong>praphul</strong>
 
             </div>
 
-        </aside>
+
+            <div class="online-status">
+
+                <span></span>
+
+                Online
+
+            </div>
+
+        </div>
+
+    </aside>
 
 
-        <!-- ================= MAIN AREA ================= -->
+    <!-- =====================================================
+         MAIN AREA
+         ===================================================== -->
 
-        <main class="main-area">
-
-
-            <!-- HEADER -->
-
-            <header class="main-header">
-
-                <div>
-
-                    <h1>Chat</h1>
-
-                    <p>
-                        Talk with your AI assistant
-                    </p>
-
-                </div>
-
-            </header>
+    <main class="main">
 
 
-            <!-- ================= CHAT ================= -->
+        <!-- TOP BAR -->
+
+        <header class="topbar">
+
+            <button
+                class="mobile-menu"
+                onclick="toggleSidebar()"
+                aria-label="Menu"
+            >
+
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 6h16"/>
+                    <path d="M4 12h16"/>
+                    <path d="M4 18h16"/>
+                </svg>
+
+            </button>
+
+
+            <div>
+
+                <h1 id="pageTitle">
+                    Chat
+                </h1>
+
+                <p id="pageSubtitle">
+                    AI Assistant
+                </p>
+
+            </div>
+
+
+            <div class="top-status">
+
+                <span></span>
+
+                Online
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             CHAT
+             ================================================= -->
+
+        <section
+            id="chatSection"
+            class="section active"
+        >
+
+
+            <!-- MESSAGES -->
 
             <div
                 class="chatbox"
                 id="chatbox"
             >
 
-                <div class="welcome-section">
+                <div class="welcome">
 
-                    <div class="welcome-icon">
-                        🤖
+                    <div class="welcome-logo">
+                        AI
                     </div>
 
                     <h2>
@@ -142,18 +304,16 @@
                     </h2>
 
                     <p>
-                        Ask me anything, or upload a PDF
-                        to use it as knowledge.
+                        Ask me anything or upload a document
+                        to give me additional knowledge.
                     </p>
 
                 </div>
 
 
-                <!-- INITIAL MESSAGE -->
-
                 <div class="message ai-message">
 
-                    👋 Hello! I am your AI assistant.
+                    Hello! I am your AI assistant.
                     How can I help you today?
 
                 </div>
@@ -161,63 +321,425 @@
             </div>
 
 
-            <!-- ================= PDF AREA ================= -->
+            <!-- =================================================
+                 CHATGPT STYLE COMPOSER
+                 ================================================= -->
 
-            <div class="upload-area">
-
-                <input
-                    type="file"
-                    id="pdfInput"
-                    accept=".pdf,application/pdf"
-                >
-
-                <button
-                    onclick="uploadPDF()"
-                >
-                    📄 Upload PDF
-                </button>
-
-                <div id="uploadStatus"></div>
-
-            </div>
+            <div class="composer-area">
 
 
-            <!-- ================= INPUT ================= -->
+                <div class="composer">
 
-            <div class="input-wrapper">
 
-                <div class="input-area">
-
-                    <input
-                        type="text"
-                        id="userInput"
-                        placeholder="Message your AI assistant..."
-                        autocomplete="off"
-                    >
+                    <!-- PLUS BUTTON -->
 
                     <button
+                        class="plus-button"
+                        id="plusButton"
+                        onclick="toggleAttachmentMenu()"
+                        aria-label="Add attachment"
+                    >
+
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 5v14"/>
+                            <path d="M5 12h14"/>
+                        </svg>
+
+                    </button>
+
+
+                    <!-- ATTACHMENT MENU -->
+
+                    <div
+                        class="attachment-menu"
+                        id="attachmentMenu"
+                    >
+
+                        <button
+                            onclick="selectPDF()"
+                        >
+
+                            <div class="attachment-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M6 3h8l4 4v14H6z"/>
+                                    <path d="M14 3v5h5"/>
+                                </svg>
+                            </div>
+
+                            <div>
+                                <strong>Upload PDF</strong>
+                                <small>Use PDF as AI knowledge</small>
+                            </div>
+
+                        </button>
+
+
+                        <button
+                            onclick="selectImage()"
+                        >
+
+                            <div class="attachment-icon">
+
+                                <svg viewBox="0 0 24 24">
+                                    <rect
+                                        x="3"
+                                        y="5"
+                                        width="18"
+                                        height="14"
+                                        rx="2"
+                                    />
+                                    <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="3"
+                                    />
+                                </svg>
+
+                            </div>
+
+                            <div>
+                                <strong>Upload image</strong>
+                                <small>AI vision</small>
+                            </div>
+
+                        </button>
+
+
+                        <button
+                            onclick="showSection('hardware')"
+                        >
+
+                            <div class="attachment-icon">
+
+                                <svg viewBox="0 0 24 24">
+                                    <rect
+                                        x="8"
+                                        y="8"
+                                        width="8"
+                                        height="8"
+                                    />
+                                    <path d="M4 10v4M20 10v4"/>
+                                    <path d="M10 4v4M14 4v4"/>
+                                </svg>
+
+                            </div>
+
+                            <div>
+                                <strong>Hardware</strong>
+                                <small>Control AI hardware</small>
+                            </div>
+
+                        </button>
+
+                    </div>
+
+
+                    <!-- PDF INPUT -->
+
+                    <input
+                        type="file"
+                        id="pdfInput"
+                        accept=".pdf,application/pdf"
+                        hidden
+                    >
+
+
+                    <!-- IMAGE INPUT -->
+
+                    <input
+                        type="file"
+                        id="imageInput"
+                        accept="image/*"
+                        hidden
+                    >
+
+
+                    <!-- TEXT -->
+
+                    <textarea
+                        id="userInput"
+                        rows="1"
+                        placeholder="Message your AI assistant..."
+                    ></textarea>
+
+
+                    <!-- SEND -->
+
+                    <button
+                        class="send-button"
                         id="sendButton"
                         onclick="sendMessage()"
+                        aria-label="Send"
                     >
-                        ➤
+
+                        <svg viewBox="0 0 24 24">
+                            <path d="M4 12h15"/>
+                            <path d="m13 6 6 6-6 6"/>
+                        </svg>
+
                     </button>
 
                 </div>
 
-                <p class="input-hint">
-                    Press Enter to send • Your AI assistant is connected
-                </p>
+
+                <!-- PDF STATUS -->
+
+                <div
+                    id="uploadStatus"
+                    class="upload-status"
+                ></div>
+
+
+                <div class="composer-note">
+
+                    AI can make mistakes. Check important information.
+
+                </div>
 
             </div>
 
-        </main>
-
-    </div>
+        </section>
 
 
-    <!-- ================= JAVASCRIPT ================= -->
+        <!-- =================================================
+             HISTORY
+             ================================================= -->
 
-    <script src="script.js"></script>
+        <section
+            id="historySection"
+            class="section"
+        >
+
+            <div class="page-container">
+
+                <div class="page-title">
+
+                    <div>
+
+                        <h2>Chat history</h2>
+
+                        <p>
+                            Your previous conversations
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        class="clear-history"
+                        onclick="clearChatHistory()"
+                    >
+                        Clear history
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="historyList"
+                    class="history-list"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             DOCUMENTS
+             ================================================= -->
+
+        <section
+            id="documentsSection"
+            class="section"
+        >
+
+            <div class="page-container">
+
+                <div class="feature-card">
+
+                    <div class="feature-logo">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 3h8l4 4v14H6z"/>
+                            <path d="M14 3v5h5"/>
+                        </svg>
+                    </div>
+
+                    <h2>
+                        Documents & RAG
+                    </h2>
+
+                    <p>
+                        Upload PDF files and use them as
+                        knowledge for your AI assistant.
+                    </p>
+
+                    <button
+                        onclick="selectPDF()"
+                        class="primary-button"
+                    >
+                        Upload PDF
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             VISION
+             ================================================= -->
+
+        <section
+            id="visionSection"
+            class="section"
+        >
+
+            <div class="page-container">
+
+                <div class="feature-card">
+
+                    <div class="feature-logo">
+
+                        <svg viewBox="0 0 24 24">
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="14"
+                                rx="2"
+                            />
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="3"
+                            />
+                        </svg>
+
+                    </div>
+
+                    <h2>
+                        AI Vision
+                    </h2>
+
+                    <p>
+                        Image understanding will be connected
+                        to your AI assistant here.
+                    </p>
+
+                    <span class="coming-soon">
+                        Coming soon
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             HARDWARE
+             ================================================= -->
+
+        <section
+            id="hardwareSection"
+            class="section"
+        >
+
+            <div class="page-container">
+
+                <div class="feature-card">
+
+                    <div class="feature-logo">
+
+                        <svg viewBox="0 0 24 24">
+                            <rect
+                                x="8"
+                                y="8"
+                                width="8"
+                                height="8"
+                            />
+                            <path d="M4 10v4M20 10v4"/>
+                            <path d="M10 4v4M14 4v4"/>
+                            <path d="M10 16v4M14 16v4"/>
+                        </svg>
+
+                    </div>
+
+                    <h2>
+                        Hardware
+                    </h2>
+
+                    <p>
+                        Your future ESP32, robotics and
+                        hardware controls will appear here.
+                    </p>
+
+                    <span class="coming-soon">
+                        Hardware integration coming soon
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             SETTINGS
+             ================================================= -->
+
+        <section
+            id="settingsSection"
+            class="section"
+        >
+
+            <div class="page-container">
+
+                <div class="feature-card">
+
+                    <div class="feature-logo">
+
+                        <svg viewBox="0 0 24 24">
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="3"
+                            />
+                            <path d="M19 12a7 7 0 0 0-.2-1.7"/>
+                        </svg>
+
+                    </div>
+
+                    <h2>
+                        Settings
+                    </h2>
+
+                    <p>
+                        Your AI assistant settings will
+                        be available here.
+                    </p>
+
+                    <span class="coming-soon">
+                        Coming soon
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script src="script.js"></script>
 
 </body>
 
