@@ -714,6 +714,18 @@
 
 
         <!-- =====================================================
+             MOBILE SIDEBAR OVERLAY
+             (click outside the sidebar to close it on phone)
+             ===================================================== -->
+
+        <div
+            id="sidebarOverlay"
+            class="sidebar-overlay"
+            onclick="closeSidebar()"
+        ></div>
+
+
+        <!-- =====================================================
              MAIN CONTENT
              ===================================================== -->
 
@@ -723,7 +735,19 @@
 
             <header class="topbar">
 
-                <div>
+                <!-- Hamburger: only visible on mobile widths (see CSS) -->
+
+                <button
+                    class="mobile-menu-button"
+                    onclick="toggleSidebar()"
+                    aria-label="Open menu"
+                    title="Menu"
+                >
+                    ☰
+                </button>
+
+
+                <div class="page-heading">
 
                     <h2 id="pageTitle">
                         AI Chat
@@ -783,6 +807,7 @@
 
                         <button
                             type="button"
+                            class="attachment-option"
                             onclick="selectPDF()"
                         >
                             📄
@@ -792,6 +817,7 @@
 
                         <button
                             type="button"
+                            class="attachment-option"
                             onclick="selectImage()"
                         >
                             🖼
@@ -801,6 +827,7 @@
 
                         <button
                             type="button"
+                            class="attachment-option"
                             onclick="showSection('hardware')"
                         >
                             ⚙
@@ -810,7 +837,7 @@
                     </div>
 
 
-                    <div class="composer">
+                    <div class="composer-box">
 
                         <button
                             type="button"
