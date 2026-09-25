@@ -9,7 +9,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>My AI Chatbot</title>
+    <title>My AI Assistant</title>
 
     <link
         rel="stylesheet"
@@ -17,94 +17,205 @@
     >
 </head>
 
-
 <body>
 
-    <div class="chat-container">
+    <div class="app-container">
 
+        <!-- ================= SIDEBAR ================= -->
 
-        <!-- =================================================
-             HEADER
-             ================================================= -->
+        <aside class="sidebar">
 
-        <div class="chat-header">
+            <div class="sidebar-header">
+                <div class="logo">
+                    🤖
+                </div>
 
-            🤖 My AI Chatbot
-
-        </div>
-
-
-        <!-- =================================================
-             RAG / PDF AREA
-             ================================================= -->
-
-        <div class="upload-area">
-
-            <input
-                type="file"
-                id="pdfInput"
-                accept=".pdf,application/pdf"
-            >
-
-            <button
-                onclick="uploadPDF()"
-            >
-                📄 Upload PDF
-            </button>
-
-            <div id="uploadStatus"></div>
-
-        </div>
-
-
-        <!-- =================================================
-             CHAT AREA
-             ================================================= -->
-
-        <div
-            class="chatbox"
-            id="chatbox"
-        >
-
-            <div
-                class="message ai-message"
-            >
-                👋 Hello! I am your AI assistant.
-                How can I help you?
+                <div>
+                    <h2>My AI Assistant</h2>
+                    <span>AI Chatbot</span>
+                </div>
             </div>
 
-        </div>
 
-
-        <!-- =================================================
-             INPUT AREA
-             ================================================= -->
-
-        <div class="input-area">
-
-            <input
-                type="text"
-                id="userInput"
-                placeholder="Ask me anything..."
-                autocomplete="off"
-            >
+            <!-- NEW CHAT -->
 
             <button
-                id="sendButton"
-                onclick="sendMessage()"
+                class="new-chat-button"
+                onclick="newChat()"
             >
-                Send
+                <span>＋</span>
+                New Chat
             </button>
 
-        </div>
 
+            <!-- NAVIGATION -->
+
+            <nav class="sidebar-nav">
+
+                <button class="nav-item active">
+                    <span>💬</span>
+                    <span>Chat</span>
+                </button>
+
+                <button class="nav-item">
+                    <span>🕘</span>
+                    <span>Chat History</span>
+                </button>
+
+                <button class="nav-item">
+                    <span>📄</span>
+                    <span>Documents / RAG</span>
+                </button>
+
+                <button class="nav-item">
+                    <span>🖼️</span>
+                    <span>Vision</span>
+                </button>
+
+                <button class="nav-item">
+                    <span>🔌</span>
+                    <span>Hardware</span>
+                </button>
+
+            </nav>
+
+
+            <!-- SIDEBAR BOTTOM -->
+
+            <div class="sidebar-bottom">
+
+                <button class="nav-item">
+                    <span>⚙️</span>
+                    <span>Settings</span>
+                </button>
+
+                <div class="status">
+
+                    <span class="status-dot"></span>
+
+                    <span>AI Online</span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- ================= MAIN AREA ================= -->
+
+        <main class="main-area">
+
+
+            <!-- HEADER -->
+
+            <header class="main-header">
+
+                <div>
+
+                    <h1>Chat</h1>
+
+                    <p>
+                        Talk with your AI assistant
+                    </p>
+
+                </div>
+
+            </header>
+
+
+            <!-- ================= CHAT ================= -->
+
+            <div
+                class="chatbox"
+                id="chatbox"
+            >
+
+                <div class="welcome-section">
+
+                    <div class="welcome-icon">
+                        🤖
+                    </div>
+
+                    <h2>
+                        How can I help you?
+                    </h2>
+
+                    <p>
+                        Ask me anything, or upload a PDF
+                        to use it as knowledge.
+                    </p>
+
+                </div>
+
+
+                <!-- INITIAL MESSAGE -->
+
+                <div class="message ai-message">
+
+                    👋 Hello! I am your AI assistant.
+                    How can I help you today?
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= PDF AREA ================= -->
+
+            <div class="upload-area">
+
+                <input
+                    type="file"
+                    id="pdfInput"
+                    accept=".pdf,application/pdf"
+                >
+
+                <button
+                    onclick="uploadPDF()"
+                >
+                    📄 Upload PDF
+                </button>
+
+                <div id="uploadStatus"></div>
+
+            </div>
+
+
+            <!-- ================= INPUT ================= -->
+
+            <div class="input-wrapper">
+
+                <div class="input-area">
+
+                    <input
+                        type="text"
+                        id="userInput"
+                        placeholder="Message your AI assistant..."
+                        autocomplete="off"
+                    >
+
+                    <button
+                        id="sendButton"
+                        onclick="sendMessage()"
+                    >
+                        ➤
+                    </button>
+
+                </div>
+
+                <p class="input-hint">
+                    Press Enter to send • Your AI assistant is connected
+                </p>
+
+            </div>
+
+        </main>
 
     </div>
 
 
-    <!-- =====================================================
-         JAVASCRIPT
-         ===================================================== -->
+    <!-- ================= JAVASCRIPT ================= -->
 
     <script src="script.js"></script>
 
