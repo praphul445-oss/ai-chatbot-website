@@ -1011,6 +1011,10 @@ async function sendMessage() {
    16. ADD MESSAGE
    ========================================================= */
 
+/* =========================================================
+   16. ADD MESSAGE
+   ========================================================= */
+
 function addMessage(
     role,
     content
@@ -1021,37 +1025,39 @@ function addMessage(
             "div"
         );
 
+    /* Correct alignment classes */
+    if (role === "user") {
 
-    messageDiv.className =
-        "message " + role;
+        messageDiv.className =
+            "message user-message";
 
+    } else {
+
+        messageDiv.className =
+            "message ai-message";
+
+    }
 
     const contentDiv =
         document.createElement(
             "div"
         );
 
-
     contentDiv.className =
         "message-content";
 
-
     contentDiv.textContent =
         content;
-
 
     messageDiv.appendChild(
         contentDiv
     );
 
-
     chatbox.appendChild(
         messageDiv
     );
 
-
     scrollToBottom();
-
 
     return messageDiv;
 
