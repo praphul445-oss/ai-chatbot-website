@@ -11,19 +11,8 @@
 const SUPABASE_URL =
     "https://jjuuilevlddifxoitffp.supabase.co";
 
-/*
-   Paste your Supabase PUBLISHABLE KEY here.
-
-   IMPORTANT:
-   Use the sb_publishable_... key you already copied
-   from Supabase.
-
-   Do NOT use a sb_secret_... key here.
-*/
-
 const SUPABASE_PUBLISHABLE_KEY =
-    "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
-
+    "sb_publishable_eQFWdaObL0JtrBmkwqJ_sw_lzbtjt-I";
 
 const supabaseClient =
     window.supabase.createClient(
@@ -82,10 +71,6 @@ document.addEventListener(
     "DOMContentLoaded",
     async function () {
 
-        /* -----------------------------------------
-           Get DOM elements
-           ----------------------------------------- */
-
         userInput =
             document.getElementById("userInput");
 
@@ -106,7 +91,6 @@ document.addEventListener(
 
         attachmentMenu =
             document.getElementById("attachmentMenu");
-
 
         authScreen =
             document.getElementById("authScreen");
@@ -130,9 +114,7 @@ document.addEventListener(
             document.getElementById("userAvatar");
 
 
-        /* -----------------------------------------
-           PDF input
-           ----------------------------------------- */
+        /* PDF input */
 
         if (pdfInput) {
 
@@ -157,9 +139,7 @@ document.addEventListener(
         }
 
 
-        /* -----------------------------------------
-           Image input
-           ----------------------------------------- */
+        /* Image input */
 
         if (imageInput) {
 
@@ -184,9 +164,7 @@ document.addEventListener(
         }
 
 
-        /* -----------------------------------------
-           Textarea
-           ----------------------------------------- */
+        /* Textarea */
 
         if (userInput) {
 
@@ -217,9 +195,7 @@ document.addEventListener(
         }
 
 
-        /* -----------------------------------------
-           Supabase authentication listener
-           ----------------------------------------- */
+        /* Supabase authentication listener */
 
         supabaseClient.auth.onAuthStateChange(
             function (event, session) {
@@ -237,9 +213,7 @@ document.addEventListener(
         );
 
 
-        /* -----------------------------------------
-           Check existing session
-           ----------------------------------------- */
+        /* Check existing session */
 
         try {
 
@@ -288,7 +262,10 @@ document.addEventListener(
 
 function handleAuthState(session) {
 
-    if (session && session.user) {
+    if (
+        session &&
+        session.user
+    ) {
 
         showApp(
             session.user
@@ -352,8 +329,6 @@ function showApp(user) {
         user
     );
 
-
-    /* Load local history */
 
     loadHistoryList();
 
@@ -541,7 +516,10 @@ async function loginUser(event) {
             .value;
 
 
-    if (!email || !password) {
+    if (
+        !email ||
+        !password
+    ) {
 
         showAuthMessage(
             "Please enter your email and password.",
@@ -553,7 +531,8 @@ async function loginUser(event) {
     }
 
 
-    loginButton.disabled = true;
+    loginButton.disabled =
+        true;
 
     loginButton.textContent =
         "Logging in...";
@@ -594,7 +573,10 @@ async function loginUser(event) {
         }
 
 
-        if (data && data.user) {
+        if (
+            data &&
+            data.user
+        ) {
 
             showAuthMessage(
                 "Login successful.",
@@ -671,7 +653,9 @@ async function signupUser(event) {
     }
 
 
-    if (password.length < 6) {
+    if (
+        password.length < 6
+    ) {
 
         showAuthMessage(
             "Password must be at least 6 characters.",
@@ -683,7 +667,10 @@ async function signupUser(event) {
     }
 
 
-    if (password !== confirmPassword) {
+    if (
+        password !==
+        confirmPassword
+    ) {
 
         showAuthMessage(
             "Passwords do not match.",
@@ -739,8 +726,8 @@ async function signupUser(event) {
 
         /*
            If email confirmation is enabled,
-           Supabase normally returns a user
-           without an active session.
+           Supabase returns a user without
+           an active session.
         */
 
         if (
@@ -1480,11 +1467,6 @@ function saveCurrentConversation() {
         getHistories();
 
 
-    /*
-       Prevent repeatedly saving the
-       exact same current conversation.
-    */
-
     if (
         histories.length > 0
     ) {
@@ -1532,11 +1514,6 @@ function saveCurrentConversation() {
         conversation
     );
 
-
-    /*
-       Keep maximum 30 conversations
-       locally for now.
-    */
 
     histories =
         histories.slice(
@@ -2019,11 +1996,6 @@ function showSection(
     }
 
 
-    /*
-       Close mobile sidebar if your
-       existing CSS/HTML supports it.
-    */
-
     document.body.classList.remove(
         "sidebar-open"
     );
@@ -2105,9 +2077,7 @@ document.addEventListener(
     "click",
     function (event) {
 
-        if (
-            !attachmentMenu
-        ) {
+        if (!attachmentMenu) {
 
             return;
 
