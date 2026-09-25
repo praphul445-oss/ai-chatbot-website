@@ -1,40 +1,72 @@
-// =========================================================
-// BACKEND
-// =========================================================
+/* =========================================================
+   MY AI ASSISTANT
+   Authentication + Chatbot + PDF/RAG + Local History
+   ========================================================= */
+
+
+/* =========================================================
+   1. SUPABASE CONFIGURATION
+   ========================================================= */
+
+const SUPABASE_URL =
+    "https://jjuuilevlddifxoitffp.supabase.co";
+
+/*
+   Paste your Supabase PUBLISHABLE KEY here.
+
+   IMPORTANT:
+   Use the sb_publishable_... key you already copied
+   from Supabase.
+
+   Do NOT use a sb_secret_... key here.
+*/
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "PASTE_YOUR_SUPABASE_PUBLISHABLE_KEY_HERE";
+
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
+
+
+/* =========================================================
+   2. BACKEND
+   ========================================================= */
 
 const BACKEND_URL =
     "https://ai-chatbot-website-zlqu.onrender.com";
 
 
-// =========================================================
-// ELEMENTS
-// =========================================================
+/* =========================================================
+   3. DOM ELEMENTS
+   ========================================================= */
 
-const input =
-    document.getElementById("userInput");
+let userInput;
+let chatbox;
+let sendButton;
+let pdfInput;
+let imageInput;
+let uploadStatus;
+let attachmentMenu;
 
-const chatbox =
-    document.getElementById("chatbox");
+let authScreen;
+let appShell;
 
-const sendButton =
-    document.getElementById("sendButton");
+let authMessage;
 
-const pdfInput =
-    document.getElementById("pdfInput");
+let loginButton;
+let signupButton;
 
-const imageInput =
-    document.getElementById("imageInput");
-
-const uploadStatus =
-    document.getElementById("uploadStatus");
-
-const attachmentMenu =
-    document.getElementById("attachmentMenu");
+let userEmail;
+let userAvatar;
 
 
-// =========================================================
-// CHAT HISTORY STORAGE
-// =========================================================
+/* =========================================================
+   4. CHAT HISTORY
+   ========================================================= */
 
 const HISTORY_KEY =
     "my_ai_chat_history";
@@ -42,102 +74,855 @@ const HISTORY_KEY =
 let currentMessages = [];
 
 
-// =========================================================
-// STARTUP
-// =========================================================
+/* =========================================================
+   5. INITIALIZATION
+   ========================================================= */
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    async function () {
 
-        loadHistoryList();
+        /* -----------------------------------------
+           Get DOM elements
+           ----------------------------------------- */
 
-        autoResizeInput();
+        userInput =
+            document.getElementById("userInput");
+
+        chatbox =
+            document.getElementById("chatbox");
+
+        sendButton =
+            document.getElementById("sendButton");
+
+        pdfInput =
+            document.getElementById("pdfInput");
+
+        imageInput =
+            document.getElementById("imageInput");
+
+        uploadStatus =
+            document.getElementById("uploadStatus");
+
+        attachmentMenu =
+            document.getElementById("attachmentMenu");
+
+
+        authScreen =
+            document.getElementById("authScreen");
+
+        appShell =
+            document.getElementById("appShell");
+
+        authMessage =
+            document.getElementById("authMessage");
+
+        loginButton =
+            document.getElementById("loginButton");
+
+        signupButton =
+            document.getElementById("signupButton");
+
+        userEmail =
+            document.getElementById("userEmail");
+
+        userAvatar =
+            document.getElementById("userAvatar");
+
+
+        /* -----------------------------------------
+           PDF input
+           ----------------------------------------- */
+
+        if (pdfInput) {
+
+            pdfInput.addEventListener(
+                "change",
+                function () {
+
+                    if (
+                        pdfInput.files &&
+                        pdfInput.files.length > 0
+                    ) {
+
+                        uploadPDF(
+                            pdfInput.files[0]
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        /* -----------------------------------------
+           Image input
+           ----------------------------------------- */
+
+        if (imageInput) {
+
+            imageInput.addEventListener(
+                "change",
+                function () {
+
+                    if (
+                        imageInput.files &&
+                        imageInput.files.length > 0
+                    ) {
+
+                        handleImageSelected(
+                            imageInput.files[0]
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        /* -----------------------------------------
+           Textarea
+           ----------------------------------------- */
+
+        if (userInput) {
+
+            userInput.addEventListener(
+                "input",
+                autoResizeInput
+            );
+
+
+            userInput.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key === "Enter" &&
+                        !event.shiftKey
+                    ) {
+
+                        event.preventDefault();
+
+                        sendMessage();
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        /* -----------------------------------------
+           Supabase authentication listener
+           ----------------------------------------- */
+
+        supabaseClient.auth.onAuthStateChange(
+            function (event, session) {
+
+                console.log(
+                    "Supabase Auth Event:",
+                    event
+                );
+
+                handleAuthState(
+                    session
+                );
+
+            }
+        );
+
+
+        /* -----------------------------------------
+           Check existing session
+           ----------------------------------------- */
+
+        try {
+
+            const {
+                data,
+                error
+            } = await supabaseClient.auth.getSession();
+
+
+            if (error) {
+
+                console.error(
+                    "Session error:",
+                    error
+                );
+
+                showLoginScreen();
+
+                return;
+
+            }
+
+
+            handleAuthState(
+                data.session
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Authentication initialization error:",
+                error
+            );
+
+            showLoginScreen();
+
+        }
 
     }
 );
 
 
-// =========================================================
-// SEND MESSAGE
-// =========================================================
+/* =========================================================
+   6. AUTHENTICATION STATE
+   ========================================================= */
 
-async function sendMessage() {
+function handleAuthState(session) {
 
-    const message =
-        input.value.trim();
+    if (session && session.user) {
 
-    if (message === "") {
+        showApp(
+            session.user
+        );
+
+    } else {
+
+        showLoginScreen();
+
+    }
+
+}
+
+
+/* =========================================================
+   7. SHOW LOGIN SCREEN
+   ========================================================= */
+
+function showLoginScreen() {
+
+    if (authScreen) {
+
+        authScreen.hidden = false;
+
+    }
+
+
+    if (appShell) {
+
+        appShell.hidden = true;
+
+    }
+
+
+    clearAuthMessage();
+
+}
+
+
+/* =========================================================
+   8. SHOW MAIN APPLICATION
+   ========================================================= */
+
+function showApp(user) {
+
+    if (authScreen) {
+
+        authScreen.hidden = true;
+
+    }
+
+
+    if (appShell) {
+
+        appShell.hidden = false;
+
+    }
+
+
+    updateUserDisplay(
+        user
+    );
+
+
+    /* Load local history */
+
+    loadHistoryList();
+
+    autoResizeInput();
+
+}
+
+
+/* =========================================================
+   9. USER DISPLAY
+   ========================================================= */
+
+function updateUserDisplay(user) {
+
+    if (!user) {
         return;
     }
 
 
-    // Close attachment menu
-
-    closeAttachmentMenu();
-
-
-    // Disable controls
-
-    input.disabled = true;
-
-    sendButton.disabled = true;
+    const email =
+        user.email || "User";
 
 
-    // -----------------------------------------------------
-    // User message
-    // -----------------------------------------------------
+    if (userEmail) {
 
-    addMessage(
-        message,
-        "user"
+        userEmail.textContent =
+            email;
+
+    }
+
+
+    if (userAvatar) {
+
+        const firstLetter =
+            email
+                .charAt(0)
+                .toUpperCase();
+
+        userAvatar.textContent =
+            firstLetter;
+
+    }
+
+}
+
+
+/* =========================================================
+   10. AUTH FORM SWITCHING
+   ========================================================= */
+
+function showAuthForm(form) {
+
+    const loginForm =
+        document.getElementById(
+            "loginForm"
+        );
+
+    const signupForm =
+        document.getElementById(
+            "signupForm"
+        );
+
+    const loginTab =
+        document.getElementById(
+            "loginTab"
+        );
+
+    const signupTab =
+        document.getElementById(
+            "signupTab"
+        );
+
+
+    clearAuthMessage();
+
+
+    if (form === "login") {
+
+        loginForm.classList.add(
+            "active"
+        );
+
+        signupForm.classList.remove(
+            "active"
+        );
+
+        loginTab.classList.add(
+            "active"
+        );
+
+        signupTab.classList.remove(
+            "active"
+        );
+
+    } else {
+
+        signupForm.classList.add(
+            "active"
+        );
+
+        loginForm.classList.remove(
+            "active"
+        );
+
+        signupTab.classList.add(
+            "active"
+        );
+
+        loginTab.classList.remove(
+            "active"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   11. AUTH MESSAGE
+   ========================================================= */
+
+function showAuthMessage(
+    message,
+    type = ""
+) {
+
+    if (!authMessage) {
+        return;
+    }
+
+
+    authMessage.textContent =
+        message;
+
+
+    authMessage.className =
+        "auth-message";
+
+
+    if (type) {
+
+        authMessage.classList.add(
+            type
+        );
+
+    }
+
+}
+
+
+function clearAuthMessage() {
+
+    if (!authMessage) {
+        return;
+    }
+
+
+    authMessage.textContent = "";
+
+    authMessage.className =
+        "auth-message";
+
+}
+
+
+/* =========================================================
+   12. LOGIN
+   ========================================================= */
+
+async function loginUser(event) {
+
+    event.preventDefault();
+
+
+    const email =
+        document
+            .getElementById("loginEmail")
+            .value
+            .trim();
+
+
+    const password =
+        document
+            .getElementById("loginPassword")
+            .value;
+
+
+    if (!email || !password) {
+
+        showAuthMessage(
+            "Please enter your email and password.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    loginButton.disabled = true;
+
+    loginButton.textContent =
+        "Logging in...";
+
+
+    clearAuthMessage();
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.signInWithPassword({
+
+            email: email,
+
+            password: password
+
+        });
+
+
+        if (error) {
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+            showAuthMessage(
+                error.message ||
+                "Login failed. Please check your details.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        if (data && data.user) {
+
+            showAuthMessage(
+                "Login successful.",
+                "success"
+            );
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Login exception:",
+            error
+        );
+
+        showAuthMessage(
+            "Something went wrong while logging in.",
+            "error"
+        );
+
+    } finally {
+
+        loginButton.disabled =
+            false;
+
+        loginButton.textContent =
+            "Login";
+
+    }
+
+}
+
+
+/* =========================================================
+   13. SIGN UP
+   ========================================================= */
+
+async function signupUser(event) {
+
+    event.preventDefault();
+
+
+    const email =
+        document
+            .getElementById("signupEmail")
+            .value
+            .trim();
+
+
+    const password =
+        document
+            .getElementById("signupPassword")
+            .value;
+
+
+    const confirmPassword =
+        document
+            .getElementById(
+                "signupConfirmPassword"
+            )
+            .value;
+
+
+    if (!email) {
+
+        showAuthMessage(
+            "Please enter your email.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (password.length < 6) {
+
+        showAuthMessage(
+            "Password must be at least 6 characters.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (password !== confirmPassword) {
+
+        showAuthMessage(
+            "Passwords do not match.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    signupButton.disabled =
+        true;
+
+    signupButton.textContent =
+        "Creating account...";
+
+
+    clearAuthMessage();
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.signUp({
+
+            email: email,
+
+            password: password
+
+        });
+
+
+        if (error) {
+
+            console.error(
+                "Signup error:",
+                error
+            );
+
+            showAuthMessage(
+                error.message ||
+                "Account creation failed.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        /*
+           If email confirmation is enabled,
+           Supabase normally returns a user
+           without an active session.
+        */
+
+        if (
+            data &&
+            data.user &&
+            !data.session
+        ) {
+
+            showAuthMessage(
+                "Account created. Please check your email and verify your account before logging in.",
+                "success"
+            );
+
+            return;
+
+        }
+
+
+        if (
+            data &&
+            data.session
+        ) {
+
+            showAuthMessage(
+                "Account created successfully.",
+                "success"
+            );
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Signup exception:",
+            error
+        );
+
+        showAuthMessage(
+            "Something went wrong while creating your account.",
+            "error"
+        );
+
+    } finally {
+
+        signupButton.disabled =
+            false;
+
+        signupButton.textContent =
+            "Create Account";
+
+    }
+
+}
+
+
+/* =========================================================
+   14. LOGOUT
+   ========================================================= */
+
+async function logoutUser() {
+
+    try {
+
+        const {
+            error
+        } = await supabaseClient.auth.signOut();
+
+
+        if (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
+
+            alert(
+                "Logout failed. Please try again."
+            );
+
+            return;
+
+        }
+
+
+        currentMessages = [];
+
+        showLoginScreen();
+
+
+        const loginPassword =
+            document.getElementById(
+                "loginPassword"
+            );
+
+
+        if (loginPassword) {
+
+            loginPassword.value = "";
+
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Logout exception:",
+            error
+        );
+
+        alert(
+            "Something went wrong while logging out."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   15. SEND CHAT MESSAGE
+   ========================================================= */
+
+async function sendMessage() {
+
+    if (!userInput) {
+        return;
+    }
+
+
+    const message =
+        userInput.value.trim();
+
+
+    if (!message) {
+        return;
+    }
+
+
+    toggleAttachmentMenu(
+        false
     );
 
 
-    // Save locally
+    if (sendButton) {
+
+        sendButton.disabled =
+            true;
+
+    }
+
+
+    userInput.disabled =
+        true;
+
+
+    addMessage(
+        "user",
+        message
+    );
+
 
     currentMessages.push({
+
         role: "user",
+
         content: message
+
     });
 
 
-    input.value = "";
+    userInput.value = "";
 
     autoResizeInput();
 
 
-    scrollChat();
+    const thinkingMessage =
+        addMessage(
+            "assistant",
+            "Thinking..."
+        );
 
-
-    // -----------------------------------------------------
-    // Typing
-    // -----------------------------------------------------
-
-    const typingMessage =
-        document.createElement("div");
-
-    typingMessage.className =
-        "message ai-message";
-
-    typingMessage.innerHTML = `
-        <div class="typing">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    `;
-
-    chatbox.appendChild(
-        typingMessage
-    );
-
-    scrollChat();
-
-
-    // -----------------------------------------------------
-    // Backend request
-    // -----------------------------------------------------
 
     try {
 
@@ -153,8 +938,11 @@ async function sendMessage() {
                     },
 
                     body: JSON.stringify({
+
                         message: message
+
                     })
+
                 }
             );
 
@@ -162,7 +950,7 @@ async function sendMessage() {
         if (!response.ok) {
 
             throw new Error(
-                "Backend error " +
+                "Server returned " +
                 response.status
             );
 
@@ -173,29 +961,27 @@ async function sendMessage() {
             await response.json();
 
 
-        typingMessage.remove();
-
-
         const reply =
+            data.response ||
+            data.message ||
             data.reply ||
-            "The AI returned an empty response.";
+            "I couldn't generate a response.";
 
 
-        addMessage(
-            reply,
-            "ai"
+        updateMessage(
+            thinkingMessage,
+            reply
         );
 
 
-        // Save AI message
-
         currentMessages.push({
+
             role: "assistant",
+
             content: reply
+
         });
 
-
-        // Save conversation
 
         saveCurrentConversation();
 
@@ -203,159 +989,192 @@ async function sendMessage() {
     } catch (error) {
 
         console.error(
-            "CHAT ERROR:",
+            "Chat error:",
             error
         );
 
 
-        typingMessage.remove();
-
-
-        addMessage(
-            "❌ I couldn't connect to the AI backend. Please try again.",
-            "ai"
+        updateMessage(
+            thinkingMessage,
+            "Sorry, I couldn't connect to the AI server."
         );
 
+    } finally {
+
+        if (sendButton) {
+
+            sendButton.disabled =
+                false;
+
+        }
+
+
+        userInput.disabled =
+            false;
+
+
+        userInput.focus();
+
     }
-
-
-    // Enable again
-
-    input.disabled = false;
-
-    sendButton.disabled = false;
-
-    input.focus();
 
 }
 
 
-// =========================================================
-// ADD MESSAGE
-// =========================================================
+/* =========================================================
+   16. ADD MESSAGE
+   ========================================================= */
 
 function addMessage(
-    text,
-    role
+    role,
+    content
 ) {
 
-    const message =
-        document.createElement("div");
+    const messageDiv =
+        document.createElement(
+            "div"
+        );
 
-    message.classList.add(
-        "message"
+
+    messageDiv.className =
+        "message " + role;
+
+
+    const contentDiv =
+        document.createElement(
+            "div"
+        );
+
+
+    contentDiv.className =
+        "message-content";
+
+
+    contentDiv.textContent =
+        content;
+
+
+    messageDiv.appendChild(
+        contentDiv
     );
-
-
-    if (role === "user") {
-
-        message.classList.add(
-            "user-message"
-        );
-
-    } else {
-
-        message.classList.add(
-            "ai-message"
-        );
-
-    }
-
-
-    message.textContent =
-        text;
 
 
     chatbox.appendChild(
-        message
+        messageDiv
     );
+
+
+    scrollToBottom();
+
+
+    return messageDiv;
 
 }
 
 
-// =========================================================
-// PDF SELECTION
-// =========================================================
+/* =========================================================
+   17. UPDATE MESSAGE
+   ========================================================= */
+
+function updateMessage(
+    messageElement,
+    content
+) {
+
+    if (!messageElement) {
+        return;
+    }
+
+
+    const contentDiv =
+        messageElement.querySelector(
+            ".message-content"
+        );
+
+
+    if (contentDiv) {
+
+        contentDiv.textContent =
+            content;
+
+    } else {
+
+        messageElement.textContent =
+            content;
+
+    }
+
+
+    scrollToBottom();
+
+}
+
+
+/* =========================================================
+   18. PDF SELECTION
+   ========================================================= */
 
 function selectPDF() {
 
-    closeAttachmentMenu();
+    if (!pdfInput) {
+        return;
+    }
+
+
+    toggleAttachmentMenu(
+        false
+    );
+
 
     pdfInput.click();
 
 }
 
 
-// =========================================================
-// PDF INPUT CHANGE
-// =========================================================
+/* =========================================================
+   19. PDF UPLOAD
+   ========================================================= */
 
-pdfInput.addEventListener(
-    "change",
-    function () {
+async function uploadPDF(
+    file
+) {
 
-        if (
-            pdfInput.files &&
-            pdfInput.files.length > 0
-        ) {
-
-            uploadPDF();
-
-        }
-
+    if (!file) {
+        return;
     }
-);
 
-
-// =========================================================
-// UPLOAD PDF
-// =========================================================
-
-async function uploadPDF() {
 
     if (
-        !pdfInput.files ||
-        pdfInput.files.length === 0
+        file.type !==
+        "application/pdf"
     ) {
+
+        showUploadStatus(
+            "Please select a PDF file.",
+            "error"
+        );
 
         return;
 
     }
 
 
-    const file =
-        pdfInput.files[0];
+    showUploadStatus(
+        "Uploading PDF...",
+        "loading"
+    );
 
 
-    if (
-        file.type !== "application/pdf" &&
-        !file.name
-            .toLowerCase()
-            .endsWith(".pdf")
-    ) {
-
-        uploadStatus.textContent =
-            "Please select a PDF file.";
-
-        return;
-
-    }
+    const formData =
+        new FormData();
 
 
-    uploadStatus.textContent =
-        "Uploading PDF and building RAG...";
+    formData.append(
+        "file",
+        file
+    );
 
 
     try {
-
-        const formData =
-            new FormData();
-
-        formData.append(
-            "file",
-            file
-        );
-
 
         const response =
             await fetch(
@@ -371,7 +1190,8 @@ async function uploadPDF() {
         if (!response.ok) {
 
             throw new Error(
-                "Upload failed"
+                "Upload failed with status " +
+                response.status
             );
 
         }
@@ -381,87 +1201,166 @@ async function uploadPDF() {
             await response.json();
 
 
-        uploadStatus.textContent =
-            "✓ " +
-            (
-                data.message ||
-                "PDF uploaded successfully"
-            ) +
-            (
-                data.chunks_added
-                    ? " • " +
-                      data.chunks_added +
-                      " chunks"
-                    : ""
-            );
-
-
-        pdfInput.value = "";
+        showUploadStatus(
+            data.message ||
+            "PDF uploaded successfully.",
+            "success"
+        );
 
 
     } catch (error) {
 
         console.error(
-            "PDF ERROR:",
+            "PDF upload error:",
             error
         );
 
 
-        uploadStatus.textContent =
-            "❌ Could not upload PDF.";
+        showUploadStatus(
+            "PDF upload failed.",
+            "error"
+        );
+
+    } finally {
+
+        pdfInput.value = "";
 
     }
 
 }
 
 
-// =========================================================
-// IMAGE SELECTION
-// =========================================================
+/* =========================================================
+   20. IMAGE SELECTION
+   ========================================================= */
 
 function selectImage() {
 
-    closeAttachmentMenu();
+    if (!imageInput) {
+        return;
+    }
+
+
+    toggleAttachmentMenu(
+        false
+    );
+
 
     imageInput.click();
 
 }
 
 
-// =========================================================
-// IMAGE INPUT
-// =========================================================
+/* =========================================================
+   21. IMAGE HANDLING
+   ========================================================= */
 
-imageInput.addEventListener(
-    "change",
-    function () {
+function handleImageSelected(
+    file
+) {
 
-        if (
-            imageInput.files &&
-            imageInput.files.length > 0
-        ) {
-
-            const file =
-                imageInput.files[0];
+    if (!file) {
+        return;
+    }
 
 
-            uploadStatus.textContent =
-                "Image selected. Vision integration will be added next.";
+    showUploadStatus(
+        "Image selected. Vision integration will be added next.",
+        "loading"
+    );
 
 
-            imageInput.value = "";
+    imageInput.value = "";
+
+}
+
+
+/* =========================================================
+   22. UPLOAD STATUS
+   ========================================================= */
+
+function showUploadStatus(
+    message,
+    type = ""
+) {
+
+    if (!uploadStatus) {
+        return;
+    }
+
+
+    uploadStatus.textContent =
+        message;
+
+
+    uploadStatus.className =
+        "upload-status";
+
+
+    if (type) {
+
+        uploadStatus.classList.add(
+            type
+        );
+
+    }
+
+
+    if (
+        type === "success"
+    ) {
+
+        setTimeout(
+            function () {
+
+                uploadStatus.textContent =
+                    "";
+
+            },
+            5000
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   23. ATTACHMENT MENU
+   ========================================================= */
+
+function toggleAttachmentMenu(
+    forceState
+) {
+
+    if (!attachmentMenu) {
+        return;
+    }
+
+
+    if (
+        typeof forceState ===
+        "boolean"
+    ) {
+
+        if (forceState) {
+
+            attachmentMenu.classList.add(
+                "show"
+            );
+
+        } else {
+
+            attachmentMenu.classList.remove(
+                "show"
+            );
 
         }
 
+        return;
+
     }
-);
 
-
-// =========================================================
-// ATTACHMENT MENU
-// =========================================================
-
-function toggleAttachmentMenu() {
 
     attachmentMenu.classList.toggle(
         "show"
@@ -470,56 +1369,51 @@ function toggleAttachmentMenu() {
 }
 
 
-function closeAttachmentMenu() {
-
-    attachmentMenu.classList.remove(
-        "show"
-    );
-
-}
-
-
-// =========================================================
-// CLICK OUTSIDE ATTACHMENT MENU
-// =========================================================
-
-document.addEventListener(
-    "click",
-    function (event) {
-
-        const plusButton =
-            document.getElementById(
-                "plusButton"
-            );
-
-
-        if (
-            attachmentMenu &&
-            !attachmentMenu.contains(event.target) &&
-            !plusButton.contains(event.target)
-        ) {
-
-            closeAttachmentMenu();
-
-        }
-
-    }
-);
-
-
-// =========================================================
-// NEW CHAT
-// =========================================================
+/* =========================================================
+   24. NEW CHAT
+   ========================================================= */
 
 async function newChat() {
 
-    // Save existing conversation
+    saveCurrentConversation();
 
-    if (
-        currentMessages.length > 0
-    ) {
 
-        saveCurrentConversation();
+    currentMessages = [];
+
+
+    if (chatbox) {
+
+        chatbox.innerHTML = `
+
+            <div class="welcome-message">
+
+                <div class="welcome-icon">
+                    🤖
+                </div>
+
+                <h2>
+                    How can I help you?
+                </h2>
+
+                <p>
+                    Ask me anything or upload a document
+                    to work with your knowledge base.
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+
+    if (userInput) {
+
+        userInput.value = "";
+
+        autoResizeInput();
+
+        userInput.focus();
 
     }
 
@@ -535,71 +1429,24 @@ async function newChat() {
 
     } catch (error) {
 
-        console.error(
-            "RESET ERROR:",
+        console.warn(
+            "Backend reset failed:",
             error
         );
 
     }
 
-
-    // Clear current messages
-
-    currentMessages = [];
-
-
-    // Reset screen
-
-    chatbox.innerHTML = `
-
-        <div class="welcome">
-
-            <div class="welcome-logo">
-                AI
-            </div>
-
-            <h2>
-                How can I help you?
-            </h2>
-
-            <p>
-                Ask me anything or upload a document
-                to give me additional knowledge.
-            </p>
-
-        </div>
-
-        <div class="message ai-message">
-
-            Hello! I am your AI assistant.
-            How can I help you today?
-
-        </div>
-
-    `;
-
-
-    showSection(
-        "chat"
-    );
-
-
-    input.value = "";
-
-    autoResizeInput();
-
-    input.focus();
-
 }
 
 
-// =========================================================
-// SAVE CURRENT CONVERSATION
-// =========================================================
+/* =========================================================
+   25. SAVE LOCAL CONVERSATION
+   ========================================================= */
 
 function saveCurrentConversation() {
 
     if (
+        !currentMessages ||
         currentMessages.length === 0
     ) {
 
@@ -608,33 +1455,69 @@ function saveCurrentConversation() {
     }
 
 
-    const histories =
-        getHistories();
-
-
-    // Create title from first user message
-
     const firstUserMessage =
         currentMessages.find(
-            message =>
-                message.role === "user"
+            function (message) {
+
+                return message.role ===
+                    "user";
+
+            }
         );
 
 
+    if (!firstUserMessage) {
+        return;
+    }
+
+
     const title =
-        firstUserMessage
-            ? firstUserMessage.content
-                .substring(0, 45)
-            : "New conversation";
+        firstUserMessage.content
+            .substring(0, 45);
+
+
+    let histories =
+        getHistories();
+
+
+    /*
+       Prevent repeatedly saving the
+       exact same current conversation.
+    */
+
+    if (
+        histories.length > 0
+    ) {
+
+        const latest =
+            histories[0];
+
+
+        if (
+            latest &&
+            latest.messages &&
+            JSON.stringify(
+                latest.messages
+            ) ===
+            JSON.stringify(
+                currentMessages
+            )
+        ) {
+
+            return;
+
+        }
+
+    }
 
 
     const conversation = {
 
-        id:
-            Date.now(),
+        id: Date.now(),
 
         title:
-            title,
+            title ||
+            "New Conversation",
 
         date:
             new Date().toLocaleString(),
@@ -650,9 +1533,12 @@ function saveCurrentConversation() {
     );
 
 
-    // Keep latest 30
+    /*
+       Keep maximum 30 conversations
+       locally for now.
+    */
 
-    const limited =
+    histories =
         histories.slice(
             0,
             30
@@ -662,7 +1548,7 @@ function saveCurrentConversation() {
     localStorage.setItem(
         HISTORY_KEY,
         JSON.stringify(
-            limited
+            histories
         )
     );
 
@@ -672,21 +1558,46 @@ function saveCurrentConversation() {
 }
 
 
-// =========================================================
-// GET HISTORY
-// =========================================================
+/* =========================================================
+   26. GET LOCAL HISTORY
+   ========================================================= */
 
 function getHistories() {
 
     try {
 
-        return JSON.parse(
+        const stored =
             localStorage.getItem(
                 HISTORY_KEY
-            )
-        ) || [];
+            );
 
-    } catch {
+
+        if (!stored) {
+
+            return [];
+
+        }
+
+
+        const histories =
+            JSON.parse(
+                stored
+            );
+
+
+        return Array.isArray(
+            histories
+        )
+            ? histories
+            : [];
+
+
+    } catch (error) {
+
+        console.error(
+            "History read error:",
+            error
+        );
 
         return [];
 
@@ -695,19 +1606,19 @@ function getHistories() {
 }
 
 
-// =========================================================
-// LOAD HISTORY LIST
-// =========================================================
+/* =========================================================
+   27. LOAD HISTORY LIST
+   ========================================================= */
 
 function loadHistoryList() {
 
-    const list =
+    const historyList =
         document.getElementById(
             "historyList"
         );
 
 
-    if (!list) {
+    if (!historyList) {
         return;
     }
 
@@ -716,23 +1627,25 @@ function loadHistoryList() {
         getHistories();
 
 
-    list.innerHTML = "";
-
-
     if (
         histories.length === 0
     ) {
 
-        list.innerHTML = `
+        historyList.innerHTML = `
 
-            <div class="history-empty">
+            <div class="empty-state">
 
-                No conversations yet.
+                <div class="empty-icon">
+                    🕘
+                </div>
 
-                <br>
+                <h3>
+                    No chat history yet
+                </h3>
 
-                Start a new chat and your
-                conversations will appear here.
+                <p>
+                    Your conversations will appear here.
+                </p>
 
             </div>
 
@@ -743,12 +1656,15 @@ function loadHistoryList() {
     }
 
 
+    historyList.innerHTML = "";
+
+
     histories.forEach(
-        conversation => {
+        function (conversation) {
 
             const item =
                 document.createElement(
-                    "button"
+                    "div"
                 );
 
 
@@ -758,44 +1674,55 @@ function loadHistoryList() {
 
             item.innerHTML = `
 
-                <div>
+                <div class="history-item-main">
 
                     <div class="history-title">
-
                         ${escapeHTML(
                             conversation.title
                         )}
-
                     </div>
 
                     <div class="history-date">
-
                         ${escapeHTML(
                             conversation.date
                         )}
-
                     </div>
 
                 </div>
 
-                <div class="history-arrow">
-                    →
-                </div>
+                <button
+                    class="history-open-btn"
+                    type="button"
+                >
+                    Open
+                </button>
 
             `;
 
 
-            item.onclick =
-                function () {
-
-                    restoreConversation(
-                        conversation.id
-                    );
-
-                };
+            const openButton =
+                item.querySelector(
+                    ".history-open-btn"
+                );
 
 
-            list.appendChild(
+            if (openButton) {
+
+                openButton.addEventListener(
+                    "click",
+                    function () {
+
+                        restoreConversation(
+                            conversation.id
+                        );
+
+                    }
+                );
+
+            }
+
+
+            historyList.appendChild(
                 item
             );
 
@@ -805,9 +1732,9 @@ function loadHistoryList() {
 }
 
 
-// =========================================================
-// RESTORE CONVERSATION
-// =========================================================
+/* =========================================================
+   28. RESTORE CONVERSATION
+   ========================================================= */
 
 function restoreConversation(
     id
@@ -819,8 +1746,11 @@ function restoreConversation(
 
     const conversation =
         histories.find(
-            item =>
-                item.id === id
+            function (item) {
+
+                return item.id === id;
+
+            }
         );
 
 
@@ -831,21 +1761,23 @@ function restoreConversation(
 
     currentMessages =
         [
-            ...conversation.messages
+            ...(conversation.messages || [])
         ];
 
 
-    chatbox.innerHTML = "";
+    if (chatbox) {
+
+        chatbox.innerHTML = "";
+
+    }
 
 
     currentMessages.forEach(
-        message => {
+        function (message) {
 
             addMessage(
-                message.content,
-                message.role === "user"
-                    ? "user"
-                    : "ai"
+                message.role,
+                message.content
             );
 
         }
@@ -857,20 +1789,24 @@ function restoreConversation(
     );
 
 
-    scrollChat();
+    if (userInput) {
+
+        userInput.focus();
+
+    }
 
 }
 
 
-// =========================================================
-// CLEAR HISTORY
-// =========================================================
+/* =========================================================
+   29. CLEAR HISTORY
+   ========================================================= */
 
 function clearChatHistory() {
 
     const confirmed =
         confirm(
-            "Delete all saved chat history?"
+            "Are you sure you want to clear your local chat history?"
         );
 
 
@@ -892,12 +1828,256 @@ function clearChatHistory() {
 }
 
 
-// =========================================================
-// HTML ESCAPE
-// =========================================================
+/* =========================================================
+   30. SECTION NAVIGATION
+   ========================================================= */
+
+function showSection(
+    section
+) {
+
+    const sections = {
+
+        chat:
+            document.getElementById(
+                "chatSection"
+            ),
+
+        history:
+            document.getElementById(
+                "historySection"
+            ),
+
+        documents:
+            document.getElementById(
+                "documentsSection"
+            ),
+
+        vision:
+            document.getElementById(
+                "visionSection"
+            ),
+
+        hardware:
+            document.getElementById(
+                "hardwareSection"
+            ),
+
+        settings:
+            document.getElementById(
+                "settingsSection"
+            )
+
+    };
+
+
+    Object.values(
+        sections
+    ).forEach(
+        function (element) {
+
+            if (element) {
+
+                element.classList.remove(
+                    "active"
+                );
+
+            }
+
+        }
+    );
+
+
+    if (
+        sections[section]
+    ) {
+
+        sections[section].classList.add(
+            "active"
+        );
+
+    }
+
+
+    const navItems =
+        document.querySelectorAll(
+            ".nav-item"
+        );
+
+
+    navItems.forEach(
+        function (item) {
+
+            item.classList.remove(
+                "active"
+            );
+
+        }
+    );
+
+
+    const sectionIndex = {
+
+        chat: 0,
+
+        history: 1,
+
+        documents: 2,
+
+        vision: 3,
+
+        hardware: 4,
+
+        settings: 5
+
+    };
+
+
+    const index =
+        sectionIndex[section];
+
+
+    if (
+        index !== undefined &&
+        navItems[index]
+    ) {
+
+        navItems[index].classList.add(
+            "active"
+        );
+
+    }
+
+
+    const titles = {
+
+        chat: [
+            "AI Chat",
+            "Your personal AI assistant"
+        ],
+
+        history: [
+            "Chat History",
+            "Your previous conversations"
+        ],
+
+        documents: [
+            "Documents",
+            "Your AI knowledge base"
+        ],
+
+        vision: [
+            "Vision",
+            "Image understanding"
+        ],
+
+        hardware: [
+            "Hardware",
+            "Connect your AI assistant to hardware"
+        ],
+
+        settings: [
+            "Settings",
+            "Manage your assistant"
+        ]
+
+    };
+
+
+    const titleData =
+        titles[section];
+
+
+    if (titleData) {
+
+        const pageTitle =
+            document.getElementById(
+                "pageTitle"
+            );
+
+        const pageSubtitle =
+            document.getElementById(
+                "pageSubtitle"
+            );
+
+
+        if (pageTitle) {
+
+            pageTitle.textContent =
+                titleData[0];
+
+        }
+
+
+        if (pageSubtitle) {
+
+            pageSubtitle.textContent =
+                titleData[1];
+
+        }
+
+    }
+
+
+    /*
+       Close mobile sidebar if your
+       existing CSS/HTML supports it.
+    */
+
+    document.body.classList.remove(
+        "sidebar-open"
+    );
+
+}
+
+
+/* =========================================================
+   31. AUTO RESIZE TEXTAREA
+   ========================================================= */
+
+function autoResizeInput() {
+
+    if (!userInput) {
+        return;
+    }
+
+
+    userInput.style.height =
+        "auto";
+
+
+    userInput.style.height =
+        Math.min(
+            userInput.scrollHeight,
+            180
+        ) + "px";
+
+}
+
+
+/* =========================================================
+   32. SCROLL CHAT
+   ========================================================= */
+
+function scrollToBottom() {
+
+    if (!chatbox) {
+        return;
+    }
+
+
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
+
+}
+
+
+/* =========================================================
+   33. ESCAPE HTML
+   ========================================================= */
 
 function escapeHTML(
-    text
+    value
 ) {
 
     const div =
@@ -907,7 +2087,9 @@ function escapeHTML(
 
 
     div.textContent =
-        text;
+        value == null
+            ? ""
+            : String(value);
 
 
     return div.innerHTML;
@@ -915,249 +2097,45 @@ function escapeHTML(
 }
 
 
-// =========================================================
-// SECTION NAVIGATION
-// =========================================================
-
-function showSection(
-    section
-) {
-
-    const sections = {
-
-        chat:
-            "chatSection",
-
-        history:
-            "historySection",
-
-        documents:
-            "documentsSection",
-
-        vision:
-            "visionSection",
-
-        hardware:
-            "hardwareSection",
-
-        settings:
-            "settingsSection"
-
-    };
-
-
-    // Hide all
-
-    document
-        .querySelectorAll(".section")
-        .forEach(
-            element => {
-
-                element.classList.remove(
-                    "active"
-                );
-
-            }
-        );
-
-
-    // Show selected
-
-    const target =
-        document.getElementById(
-            sections[section]
-        );
-
-
-    if (target) {
-
-        target.classList.add(
-            "active"
-        );
-
-    }
-
-
-    // Active sidebar button
-
-    document
-        .querySelectorAll(
-            ".nav-item"
-        )
-        .forEach(
-            item => {
-
-                item.classList.remove(
-                    "active"
-                );
-
-
-                if (
-                    item.dataset.section ===
-                    section
-                ) {
-
-                    item.classList.add(
-                        "active"
-                    );
-
-                }
-
-            }
-        );
-
-
-    // Header
-
-    const titles = {
-
-        chat: [
-            "Chat",
-            "AI Assistant"
-        ],
-
-        history: [
-            "Chat history",
-            "Your conversations"
-        ],
-
-        documents: [
-            "Documents",
-            "PDF & RAG"
-        ],
-
-        vision: [
-            "Vision",
-            "AI image understanding"
-        ],
-
-        hardware: [
-            "Hardware",
-            "AI hardware control"
-        ],
-
-        settings: [
-            "Settings",
-            "AI Assistant settings"
-        ]
-
-    };
-
-
-    document.getElementById(
-        "pageTitle"
-    ).textContent =
-        titles[section][0];
-
-
-    document.getElementById(
-        "pageSubtitle"
-    ).textContent =
-        titles[section][1];
-
-
-    // Close mobile sidebar
-
-    if (
-        window.innerWidth <= 700
-    ) {
-
-        document
-            .getElementById("sidebar")
-            .classList.remove(
-                "open"
-            );
-
-    }
-
-
-    if (
-        section === "history"
-    ) {
-
-        loadHistoryList();
-
-    }
-
-}
-
-
-// =========================================================
-// MOBILE SIDEBAR
-// =========================================================
-
-function toggleSidebar() {
-
-    document
-        .getElementById("sidebar")
-        .classList.toggle(
-            "open"
-        );
-
-}
-
-
-// =========================================================
-// AUTO RESIZE TEXTAREA
-// =========================================================
-
-function autoResizeInput() {
-
-    input.style.height =
-        "auto";
-
-
-    input.style.height =
-        Math.min(
-            input.scrollHeight,
-            150
-        ) + "px";
-
-}
-
-
-// =========================================================
-// TEXTAREA EVENTS
-// =========================================================
-
-input.addEventListener(
-    "input",
-    autoResizeInput
-);
-
-
-input.addEventListener(
-    "keydown",
+/* =========================================================
+   34. CLOSE ATTACHMENT MENU
+   ========================================================= */
+
+document.addEventListener(
+    "click",
     function (event) {
 
         if (
-            event.key === "Enter" &&
-            !event.shiftKey
+            !attachmentMenu
         ) {
 
-            event.preventDefault();
+            return;
 
-            if (
-                !sendButton.disabled
-            ) {
+        }
 
-                sendMessage();
 
-            }
+        const clickedInsideMenu =
+            attachmentMenu.contains(
+                event.target
+            );
+
+
+        const clickedButton =
+            event.target.closest(
+                ".attachment-btn"
+            );
+
+
+        if (
+            !clickedInsideMenu &&
+            !clickedButton
+        ) {
+
+            attachmentMenu.classList.remove(
+                "show"
+            );
 
         }
 
     }
 );
-
-
-// =========================================================
-// SCROLL
-// =========================================================
-
-function scrollChat() {
-
-    chatbox.scrollTop =
-        chatbox.scrollHeight;
-
-}
