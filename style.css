@@ -309,6 +309,8 @@ body {
    ========================================================= */
 
 #appShell {
+    position: relative;
+
     width: 100%;
     height: 100dvh;
 
@@ -332,6 +334,7 @@ body {
 
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 
     background: #111116;
 
@@ -396,6 +399,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+
+    gap: 8px;
 
     border: 1px solid #35353e;
     border-radius: 10px;
@@ -688,6 +693,25 @@ body {
 
 .mobile-menu-button:hover {
     background: #25252c;
+}
+
+
+/* =========================================================
+   15b. MOBILE SIDEBAR OVERLAY
+   (a real element instead of a ::after pseudo-element,
+   so it can carry its own click-to-close handler)
+   ========================================================= */
+
+.sidebar-overlay {
+    display: none;
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.58);
+
+    z-index: 999;
 }
 
 
@@ -1181,22 +1205,6 @@ body {
     overflow-y: auto;
 }
 
-.history-header {
-    margin-bottom: 20px;
-}
-
-.history-header h2 {
-    font-size: 22px;
-
-    margin-bottom: 5px;
-}
-
-.history-header p {
-    color: #85858e;
-
-    font-size: 13px;
-}
-
 .history-list {
     display: flex;
     flex-direction: column;
@@ -1271,6 +1279,8 @@ body {
     font-size: 12px;
 
     cursor: pointer;
+
+    flex-shrink: 0;
 }
 
 .history-open-btn:hover {
@@ -1324,6 +1334,8 @@ body {
     font-size: 13px;
 
     cursor: pointer;
+
+    flex-shrink: 0;
 }
 
 .danger-btn:hover {
@@ -1344,24 +1356,48 @@ body {
     overflow-y: auto;
 }
 
-.section-container {
+.documents-container {
     width: 100%;
     max-width: 1000px;
 
     margin: 0 auto;
 }
 
-.section-container h2 {
-    margin-bottom: 8px;
 
-    font-size: 24px;
+/* =========================================================
+   33b. SECTION HEADER
+   (title + optional action button, used by every
+   non-chat section: History, Documents, Vision,
+   Hardware, Settings)
+   ========================================================= */
+
+.section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    flex-wrap: wrap;
+
+    max-width: 1000px;
+    margin: 0 auto 22px;
 }
 
-.section-container p {
-    color: #8d8d96;
+.section-header h2 {
+    margin-bottom: 6px;
 
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 22px;
+    font-weight: 700;
+
+    color: #f4f4f6;
+}
+
+.section-header p {
+    color: #85858e;
+
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 
@@ -1370,8 +1406,6 @@ body {
    ========================================================= */
 
 .primary-btn {
-    margin-top: 18px;
-
     padding: 11px 16px;
 
     border: none;
@@ -1385,6 +1419,8 @@ body {
     font-weight: 600;
 
     cursor: pointer;
+
+    flex-shrink: 0;
 }
 
 .primary-btn:hover {
@@ -1458,18 +1494,12 @@ body {
 
     /* -----------------------------------------------------
        DARK OVERLAY
+       (shown/hidden via the real .sidebar-overlay element,
+       not a ::after pseudo-element, so it can be clicked)
        ----------------------------------------------------- */
 
-    body.sidebar-open::after {
-        content: "";
-
-        position: fixed;
-
-        inset: 0;
-
-        background: rgba(0, 0, 0, 0.58);
-
-        z-index: 999;
+    body.sidebar-open .sidebar-overlay {
+        display: block;
     }
 
 
@@ -1754,8 +1784,8 @@ body {
     }
 
 
-    .section-container h2 {
-        font-size: 21px;
+    .section-header h2 {
+        font-size: 19px;
     }
 
 
