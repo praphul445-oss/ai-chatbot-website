@@ -216,6 +216,40 @@
             cursor: not-allowed;
         }
 
+        .auth-button + .auth-button {
+            margin-top: 10px;
+        }
+
+        .auth-button-secondary {
+            background: #ffffff;
+            color: #111827;
+            border: 1px solid #d1d5db;
+        }
+
+        .auth-button-secondary:hover {
+            background: #f3f4f6;
+        }
+
+        .auth-back-btn {
+            border: none;
+            background: transparent;
+
+            margin-bottom: 10px;
+
+            padding: 4px 0;
+
+            font-size: 13px;
+            font-weight: 600;
+
+            color: #6b7280;
+
+            cursor: pointer;
+        }
+
+        .auth-back-btn:hover {
+            color: #111827;
+        }
+
         .auth-message {
             min-height: 20px;
 
@@ -361,15 +395,78 @@
 <body>
 
     <!-- =========================================================
+         PUBLIC WELCOME SCREEN
+         (shown first, before any login form — this is what
+         visitors and crawlers see on landing)
+         ========================================================= -->
+
+    <div
+        id="welcomeScreen"
+        class="auth-screen"
+    >
+
+        <div class="auth-card">
+
+            <div class="auth-logo">
+                🤖
+            </div>
+
+            <h1 class="auth-title">
+                My AI Assistant
+            </h1>
+
+            <p class="auth-subtitle">
+                Your personal AI assistant — chat, upload
+                documents, and get instant answers. Sign in
+                or create a free account to get started.
+            </p>
+
+            <button
+                type="button"
+                class="auth-button"
+                onclick="openAuthScreen('login')"
+            >
+                Log In
+            </button>
+
+            <button
+                type="button"
+                class="auth-button auth-button-secondary"
+                onclick="openAuthScreen('signup')"
+            >
+                Create Account
+            </button>
+
+            <div class="auth-footer">
+                AI Assistant created by <strong>praphul</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
          AUTHENTICATION SCREEN
+         (only shown after the visitor chooses Log In /
+         Create Account above)
          ========================================================= -->
 
     <div
         id="authScreen"
         class="auth-screen"
+        hidden
     >
 
         <div class="auth-card">
+
+            <button
+                type="button"
+                class="auth-back-btn"
+                onclick="backToWelcome()"
+            >
+                ← Back
+            </button>
 
             <div class="auth-logo">
                 🤖
