@@ -41,6 +41,7 @@ let imageInput;
 let uploadStatus;
 let attachmentMenu;
 
+let welcomeScreen;
 let authScreen;
 let appShell;
 
@@ -93,6 +94,9 @@ document.addEventListener(
 
         attachmentMenu =
             document.getElementById("attachmentMenu");
+
+        welcomeScreen =
+            document.getElementById("welcomeScreen");
 
         authScreen =
             document.getElementById("authScreen");
@@ -291,9 +295,16 @@ function handleAuthState(session) {
 
 function showLoginScreen() {
 
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = false;
+
+    }
+
+
     if (authScreen) {
 
-        authScreen.hidden = false;
+        authScreen.hidden = true;
 
     }
 
@@ -314,10 +325,67 @@ function showLoginScreen() {
 
 
 /* =========================================================
+   7b. OPEN / CLOSE THE ACTUAL LOGIN FORM
+   (only reached after the visitor clicks a button on the
+   public welcome screen — never shown on first load)
+   ========================================================= */
+
+function openAuthScreen(form) {
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = true;
+
+    }
+
+
+    if (authScreen) {
+
+        authScreen.hidden = false;
+
+    }
+
+
+    showAuthForm(
+        form || "login"
+    );
+
+}
+
+
+function backToWelcome() {
+
+    if (authScreen) {
+
+        authScreen.hidden = true;
+
+    }
+
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = false;
+
+    }
+
+
+    clearAuthMessage();
+
+}
+
+
+/* =========================================================
    8. SHOW MAIN APPLICATION
    ========================================================= */
 
 function showApp(user) {
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = true;
+
+    }
+
 
     if (authScreen) {
 
