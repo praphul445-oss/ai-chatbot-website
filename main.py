@@ -1,16 +1,36 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+"""
+My AI Chatbot API  (v9.0)
+
+- Groq LLM (OpenAI-compatible endpoint)
+- Supabase login: user identity comes from the VERIFIED access token
+- Per-user conversation memory
+- Per-user local RAG (PDF upload + TF-IDF style search)
+
+Environment variables (set these on Render and in a local .env / shell):
+    GROQ_API_KEY        required
+    GROQ_MODEL          optional (default llama-3.3-70b-versatile)
+    SUPABASE_URL        required  e.g. https://xxxx.supabase.co
+    SUPABASE_ANON_KEY   required  (anon key only, NEVER the service role key)
+    ALLOWED_ORIGINS     optional  comma separated, e.g. https://mysite.com
+                        (default "*" = allow all, fine for testing)
+    DATA_DIR            optional  where user data is stored. Point this at a
+                        Render persistent disk so data survives redeploys.
+"""
 
 import json
+import math
 import os
 import re
-import math
+import threading
 import time
 from io import BytesIO
 
-from pypdf import PdfReader
+import httpx
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
+from pydantic import BaseModel
+from pypdf import PdfReader
 
 
 # =========================================================
@@ -19,8 +39,8 @@ from openai import OpenAI
 
 app = FastAPI(
     title="My AI Chatbot API",
-    description="AI Chatbot with Groq, Memory and Improved Local RAG",
-    version="7.0"
+    description="AI Chatbot with Groq, verified Supabase auth, per-user memory and per-user RAG",
+    version="9.0",
 )
 
 
@@ -28,74 +48,65 @@ app = FastAPI(
 # CORS
 # =========================================================
 
+_origins_env = os.getenv("ALLOWED_ORIGINS", "*").strip()
+ALLOWED_ORIGINS = (
+    ["*"]
+    if _origins_env == "*"
+    else [o.strip() for o in _origins_env.split(",") if o.strip()]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],  # includes the Authorization header
 )
 
 
 # =========================================================
-# REQUEST MODEL
-# =========================================================
-
-class ChatRequest(BaseModel):
-    message: str
-
-
-# =========================================================
-# GROQ (OpenAI-compatible endpoint)
+# SETTINGS
 # =========================================================
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-GROQ_MODEL = os.getenv(
-    "GROQ_MODEL",
-    "llama-3.3-70b-versatile"
-)
-
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-if GROQ_API_KEY:
-
-    openai_client = OpenAI(
-        api_key=GROQ_API_KEY,
-        base_url=GROQ_BASE_URL
-    )
-
-    print("=== GROQ CONNECTED ===")
-    print("Groq model:", GROQ_MODEL)
-
-else:
-
-    openai_client = None
-
-    print("=== WARNING: GROQ_API_KEY NOT SET ===")
-
-
-# =========================================================
-# BASE DIRECTORY
-# =========================================================
-
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-
-# =========================================================
-# MEMORY
-# =========================================================
-
-MEMORY_FILE = os.path.join(
-    BASE_DIR,
-    "conversation_history.json"
-)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USERS_DIR = os.getenv("DATA_DIR") or os.path.join(BASE_DIR, "data", "users")
+os.makedirs(USERS_DIR, exist_ok=True)
 
 MAX_MEMORY_MESSAGES = 10
+MAX_MESSAGE_CHARS = 4000
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
+CHUNK_SIZE = 900
+CHUNK_OVERLAP = 150
+RAG_TOP_K = 5
+
+
+# =========================================================
+# GROQ CLIENT
+# =========================================================
+
+if GROQ_API_KEY:
+    openai_client = OpenAI(api_key=GROQ_API_KEY, base_url=GROQ_BASE_URL)
+    print("=== GROQ CONNECTED ===")
+    print("Groq model:", GROQ_MODEL)
+else:
+    openai_client = None
+    print("=== WARNING: GROQ_API_KEY NOT SET ===")
+
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    print("=== WARNING: SUPABASE_URL / SUPABASE_ANON_KEY NOT SET (all requests will fail auth) ===")
+
+
+# =========================================================
+# SYSTEM PROMPT
+# =========================================================
 
 SYSTEM_PROMPT = """
 You are a helpful AI chatbot.
@@ -106,7 +117,8 @@ during the conversation.
 If the user tells you their name, remember it and answer
 correctly when they later ask for their name.
 
-You also have access to a local RAG knowledge base.
+You also have access to a local RAG knowledge base made of
+the user's own uploaded documents.
 
 IMPORTANT RAG RULES:
 
@@ -134,164 +146,175 @@ IMPORTANT RAG RULES:
 """
 
 
-def load_history():
+# =========================================================
+# REQUEST MODEL
+# =========================================================
 
-    if not os.path.exists(MEMORY_FILE):
+class ChatRequest(BaseModel):
+    message: str
+
+
+# =========================================================
+# USER ID SAFETY
+# =========================================================
+
+def clean_user_id(user_id):
+    """Allow only characters that are safe for folder names (UUIDs pass)."""
+    if not user_id:
+        return None
+
+    user_id = str(user_id).strip()
+
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,100}", user_id):
+        return None
+
+    return user_id
+
+
+# =========================================================
+# AUTH: VERIFY THE SUPABASE TOKEN
+# =========================================================
+
+async def get_current_user(authorization: str = Header(None)):
+    """
+    Reads 'Authorization: Bearer <supabase access token>', asks Supabase
+    to verify it, and returns the real user id. The client can no longer
+    choose which user it pretends to be.
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing login token.")
+
+    token = authorization.split(" ", 1)[1].strip()
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing login token.")
+
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=500, detail="Auth is not configured on the server.")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": SUPABASE_ANON_KEY,
+                },
+            )
+    except Exception as e:
+        print("AUTH ERROR:", e)
+        raise HTTPException(status_code=503, detail="Could not verify login. Try again.")
+
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired login.")
+
+    try:
+        user_id = clean_user_id(r.json().get("id"))
+    except Exception:
+        user_id = None
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user.")
+
+    return user_id
+
+
+# =========================================================
+# PER-USER LOCKS (prevents two requests corrupting one file)
+# =========================================================
+
+_locks = {}
+_locks_guard = threading.Lock()
+
+
+def user_lock(user_id):
+    with _locks_guard:
+        if user_id not in _locks:
+            _locks[user_id] = threading.Lock()
+        return _locks[user_id]
+
+
+# =========================================================
+# USER PATHS + SAFE JSON HELPERS
+# =========================================================
+
+def get_user_paths(user_id):
+    safe_user_id = clean_user_id(user_id)
+
+    if not safe_user_id:
+        raise ValueError("Invalid user ID.")
+
+    user_dir = os.path.join(USERS_DIR, safe_user_id)
+    rag_dir = os.path.join(user_dir, "rag")
+    documents_dir = os.path.join(rag_dir, "documents")
+
+    os.makedirs(documents_dir, exist_ok=True)
+
+    return {
+        "user_dir": user_dir,
+        "rag_dir": rag_dir,
+        "documents_dir": documents_dir,
+        "memory_file": os.path.join(user_dir, "conversation_history.json"),
+        "rag_file": os.path.join(rag_dir, "local_rag.json"),
+    }
+
+
+def read_json_list(path):
+    if not os.path.exists(path):
         return []
 
     try:
-
-        with open(
-            MEMORY_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            history = json.load(f)
-
-        if not isinstance(history, list):
-            return []
-
-        return history[-MAX_MEMORY_MESSAGES:]
-
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
     except Exception as e:
-
-        print("MEMORY LOAD ERROR:", e)
-
+        print("JSON LOAD ERROR:", path, e)
         return []
 
 
-def save_history(history):
+def write_json_atomic(path, data):
+    """Write to a temp file then swap it in, so a crash can't leave half a file."""
+    tmp_path = path + ".tmp"
 
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    os.replace(tmp_path, path)
+
+
+# =========================================================
+# MEMORY
+# =========================================================
+
+def load_history(user_id):
+    paths = get_user_paths(user_id)
+    return read_json_list(paths["memory_file"])[-MAX_MEMORY_MESSAGES:]
+
+
+def save_history(user_id, history):
+    paths = get_user_paths(user_id)
     history = history[-MAX_MEMORY_MESSAGES:]
 
     try:
-
-        with open(
-            MEMORY_FILE,
-            "w",
-            encoding="utf-8"
-        ) as f:
-
-            json.dump(
-                history,
-                f,
-                indent=2,
-                ensure_ascii=False
-            )
-
+        write_json_atomic(paths["memory_file"], history)
     except Exception as e:
-
         print("MEMORY SAVE ERROR:", e)
 
     return history
 
 
-conversation_history = load_history()
-
-
-print()
-print("================================")
-print("STARTUP MEMORY")
-print("================================")
-
-print(
-    conversation_history
-)
-
-
 # =========================================================
-# LOCAL RAG DATABASE
+# RAG LOAD / SAVE
 # =========================================================
 
-DOCUMENTS_DIR = os.path.join(
-    BASE_DIR,
-    "rag",
-    "documents"
-)
-
-RAG_FILE = os.path.join(
-    BASE_DIR,
-    "rag",
-    "local_rag.json"
-)
+def load_rag(user_id):
+    paths = get_user_paths(user_id)
+    return read_json_list(paths["rag_file"])
 
 
-os.makedirs(
-    DOCUMENTS_DIR,
-    exist_ok=True
-)
-
-os.makedirs(
-    os.path.dirname(RAG_FILE),
-    exist_ok=True
-)
-
-
-def load_rag():
-
-    if not os.path.exists(RAG_FILE):
-        return []
-
-    try:
-
-        with open(
-            RAG_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            data = json.load(f)
-
-        if not isinstance(data, list):
-            return []
-
-        return data
-
-    except Exception as e:
-
-        print("RAG LOAD ERROR:", e)
-
-        return []
-
-
-def save_rag(data):
-
-    with open(
-        RAG_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            data,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
-
-
-rag_documents = load_rag()
-
-
-print()
-print("================================")
-print("LOCAL RAG STARTED")
-print("================================")
-
-print(
-    "RAG chunks:",
-    len(rag_documents)
-)
-
-
-# =========================================================
-# RAG SETTINGS
-# =========================================================
-
-CHUNK_SIZE = 900
-CHUNK_OVERLAP = 150
-RAG_TOP_K = 5
+def save_rag(user_id, data):
+    paths = get_user_paths(user_id)
+    write_json_atomic(paths["rag_file"], data)
 
 
 # =========================================================
@@ -299,110 +322,39 @@ RAG_TOP_K = 5
 # =========================================================
 
 STOP_WORDS = {
-    "the",
-    "is",
-    "a",
-    "an",
-    "and",
-    "or",
-    "of",
-    "to",
-    "in",
-    "on",
-    "for",
-    "with",
-    "what",
-    "are",
-    "how",
-    "this",
-    "that",
-    "from",
-    "by",
-    "based",
-    "as",
-    "be",
-    "it",
-    "was",
-    "were",
-    "about",
-    "according",
-    "into",
-    "can",
-    "does",
-    "do",
-    "which",
-    "their",
-    "they",
-    "them",
-    "these",
-    "those"
+    "the", "is", "a", "an", "and", "or", "of", "to", "in", "on", "for",
+    "with", "what", "are", "how", "this", "that", "from", "by", "based",
+    "as", "be", "it", "was", "were", "about", "according", "into", "can",
+    "does", "do", "which", "their", "they", "them", "these", "those",
 }
 
 
 def tokenize(text):
-
-    words = re.findall(
-        r"[a-zA-Z0-9]+",
-        text.lower()
-    )
-
-    return [
-        word
-        for word in words
-        if word not in STOP_WORDS
-    ]
+    words = re.findall(r"[a-zA-Z0-9]+", text.lower())
+    return [w for w in words if w not in STOP_WORDS]
 
 
-# =========================================================
-# CREATE CHUNKS
-# =========================================================
-
-def create_chunks(
-    text,
-    page_number
-):
-
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    ).strip()
+def create_chunks(text, page_number):
+    text = re.sub(r"\s+", " ", text).strip()
 
     if not text:
         return []
 
     chunks = []
-
     start = 0
-
     text_length = len(text)
 
     while start < text_length:
-
-        end = min(
-            start + CHUNK_SIZE,
-            text_length
-        )
-
-        chunk = text[
-            start:end
-        ].strip()
+        end = min(start + CHUNK_SIZE, text_length)
+        chunk = text[start:end].strip()
 
         if chunk:
-
-            chunks.append(
-                {
-                    "page": page_number,
-                    "text": chunk
-                }
-            )
+            chunks.append({"page": page_number, "text": chunk})
 
         if end >= text_length:
             break
 
-        next_start = (
-            end - CHUNK_OVERLAP
-        )
+        next_start = end - CHUNK_OVERLAP
 
         if next_start <= start:
             next_start = end
@@ -412,1076 +364,396 @@ def create_chunks(
     return chunks
 
 
-# =========================================================
-# CHECK DOCUMENT
-# =========================================================
+def document_exists(rag_documents, filename):
+    return any(d.get("source") == filename for d in rag_documents)
 
-def document_exists(filename):
 
-    for document in rag_documents:
-
-        if document.get("source") == filename:
-            return True
-
-    return False
+def safe_filename(name):
+    name = os.path.basename(name)
+    name = re.sub(r"[^\w.\- ]", "_", name).strip()
+    return name[:150]
 
 
 # =========================================================
-# LOCAL RAG SEARCH
+# RAG SEARCH (only ever searches ONE user's chunks)
 # =========================================================
 
-def search_rag(query):
+def search_rag(user_id, query):
+    rag_documents = load_rag(user_id)
+
+    empty = {"context": "", "sources": []}
 
     if not rag_documents:
-
-        print("RAG database is empty.")
-
-        return {
-            "context": "",
-            "sources": []
-        }
+        return empty
 
     query_words = tokenize(query)
 
     if not query_words:
+        return empty
 
-        return {
-            "context": "",
-            "sources": []
-        }
+    normalized_query = re.sub(r"\s+", " ", query.lower()).strip()
+    unique_query_words = set(query_words)
 
-    normalized_query = re.sub(
-        r"\s+",
-        " ",
-        query.lower()
-    ).strip()
-
-
-    # -----------------------------------------------------
-    # DOCUMENT FREQUENCY
-    # -----------------------------------------------------
-
+    # Tokenize each chunk once
+    tokenized = []
     document_frequency = {}
 
     for document in rag_documents:
+        words = tokenize(document.get("text", ""))
+        tokenized.append(words)
 
-        words = set(
-            tokenize(
-                document.get(
-                    "text",
-                    ""
-                )
-            )
-        )
+        for word in set(words):
+            document_frequency[word] = document_frequency.get(word, 0) + 1
 
-        for word in words:
+    total_documents = len(rag_documents)
+    scored = []
 
-            document_frequency[word] = (
-                document_frequency.get(
-                    word,
-                    0
-                ) + 1
-            )
+    for document, words in zip(rag_documents, tokenized):
+        text = document.get("text", "")
 
-
-    total_documents = len(
-        rag_documents
-    )
-
-
-    # -----------------------------------------------------
-    # SCORE DOCUMENTS
-    # -----------------------------------------------------
-
-    scored_documents = []
-
-    for document in rag_documents:
-
-        text = document.get(
-            "text",
-            ""
-        )
-
-        if not text:
-            continue
-
-        words = tokenize(text)
-
-        if not words:
+        if not text or not words:
             continue
 
         word_counts = {}
-
         for word in words:
-
-            word_counts[word] = (
-                word_counts.get(
-                    word,
-                    0
-                ) + 1
-            )
+            word_counts[word] = word_counts.get(word, 0) + 1
 
         score = 0.0
 
-
-        # -------------------------------------------------
-        # TF-IDF STYLE SCORE
-        # -------------------------------------------------
-
+        # TF-IDF style score
         for query_word in query_words:
-
             if query_word not in word_counts:
                 continue
 
-            term_frequency = (
-                word_counts[query_word]
-                / len(words)
-            )
+            term_frequency = word_counts[query_word] / len(words)
+            df = document_frequency.get(query_word, 0)
+            idf = math.log((total_documents + 1) / (df + 1)) + 1
+            score += term_frequency * idf
 
-            df = document_frequency.get(
-                query_word,
-                0
-            )
-
-            idf = math.log(
-                (total_documents + 1)
-                / (df + 1)
-            ) + 1
-
-            score += (
-                term_frequency * idf
-            )
-
-
-        # -------------------------------------------------
-        # EXACT PHRASE BONUS
-        # -------------------------------------------------
-
-        if (
-            len(normalized_query) >= 8
-            and normalized_query in text.lower()
-        ):
-
+        # Exact phrase bonus
+        if len(normalized_query) >= 8 and normalized_query in text.lower():
             score += 2.0
 
-
-        # -------------------------------------------------
-        # QUERY COVERAGE BONUS
-        # -------------------------------------------------
-
-        unique_query_words = set(
-            query_words
-        )
-
-        matched_words = 0
-
-        for query_word in unique_query_words:
-
-            if query_word in word_counts:
-                matched_words += 1
-
-        if unique_query_words:
-
-            coverage = (
-                matched_words
-                / len(unique_query_words)
-            )
-
-            score += (
-                coverage * 0.5
-            )
-
+        # Query coverage bonus
+        matched = sum(1 for w in unique_query_words if w in word_counts)
+        score += (matched / len(unique_query_words)) * 0.5
 
         if score > 0:
+            scored.append((score, document))
 
-            scored_documents.append(
-                (
-                    score,
-                    document
-                )
-            )
-
-
-    # -----------------------------------------------------
-    # SORT
-    # -----------------------------------------------------
-
-    scored_documents.sort(
-        key=lambda x: x[0],
-        reverse=True
-    )
-
-
-    # -----------------------------------------------------
-    # TOP RESULTS
-    # -----------------------------------------------------
-
-    top_documents = scored_documents[
-        :RAG_TOP_K
-    ]
-
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top_documents = scored[:RAG_TOP_K]
 
     if not top_documents:
-
-        print(
-            "RAG: No relevant information found."
-        )
-
-        return {
-            "context": "",
-            "sources": []
-        }
-
-
-    # -----------------------------------------------------
-    # BUILD CONTEXT
-    # -----------------------------------------------------
-
-    print()
-    print(
-        "=== LOCAL RAG SEARCH RESULTS ==="
-    )
+        return empty
 
     context_parts = []
-
     sources = []
 
+    for score, document in top_documents:
+        source = document.get("source", "Unknown document")
+        page = document.get("page", "Unknown")
+        text = document.get("text", "")
 
-    for rank, item in enumerate(
-        top_documents,
-        start=1
-    ):
+        context_parts.append(f"[Source: {source} | Page: {page}]\n\n{text}")
 
-        score = item[0]
-
-        document = item[1]
-
-        source = document.get(
-            "source",
-            "Unknown document"
-        )
-
-        page = document.get(
-            "page",
-            "Unknown"
-        )
-
-        text = document.get(
-            "text",
-            ""
-        )
-
-
-        print(
-            "--------------------------------"
-        )
-
-        print(
-            f"Result {rank}"
-        )
-
-        print(
-            "Source:",
-            source
-        )
-
-        print(
-            "Page:",
-            page
-        )
-
-        print(
-            "Score:",
-            round(
-                score,
-                4
-            )
-        )
-
-        print(text)
-
-
-        context_parts.append(
-            f"""
-[Source: {source} | Page: {page}]
-
-{text}
-"""
-        )
-
-
-        source_entry = {
-            "source": source,
-            "page": page
-        }
-
-
+        source_entry = {"source": source, "page": page}
         if source_entry not in sources:
+            sources.append(source_entry)
 
-            sources.append(
-                source_entry
-            )
-
-
-    context = "\n\n".join(
-        context_parts
-    )
-
-
-    return {
-        "context": context,
-        "sources": sources
-    }
+    return {"context": "\n\n".join(context_parts), "sources": sources}
 
 
 # =========================================================
-# HOME
+# HOME (public health check, no user data)
 # =========================================================
 
 @app.get("/")
 def home():
-
     return {
-        "message":
-            "AI Chatbot backend is running!",
-
-        "ai":
-            "Groq",
-
-        "model":
-            GROQ_MODEL,
-
-        "rag":
-            True,
-
-        "rag_type":
-            "Improved local TF-IDF-style retrieval",
-
-        "rag_chunks":
-            len(rag_documents),
-
-        "rag_top_k":
-            RAG_TOP_K,
-
-        "chunk_size":
-            CHUNK_SIZE,
-
-        "chunk_overlap":
-            CHUNK_OVERLAP,
-
-        "memory":
-            True,
-
-        "upload":
-            True,
-
-        "chat":
-            True
+        "message": "AI Chatbot backend is running!",
+        "version": "9.0",
+        "ai": "Groq",
+        "model": GROQ_MODEL,
+        "auth": "Supabase (verified token)",
+        "memory": "Per-user",
+        "rag": "Per-user local TF-IDF-style retrieval",
+        "rag_top_k": RAG_TOP_K,
+        "chunk_size": CHUNK_SIZE,
+        "chunk_overlap": CHUNK_OVERLAP,
+        "max_upload_mb": MAX_UPLOAD_BYTES // (1024 * 1024),
     }
 
 
 # =========================================================
 # CHAT
+# (plain "def" so FastAPI runs it in a worker thread; the Groq call
+#  and retry sleeps no longer freeze the server for other users)
 # =========================================================
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
-
-    global conversation_history
-
-
-    print()
-    print("================================")
-    print("NEW CHAT REQUEST")
-    print("================================")
-
+def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
 
     user_message = request.message.strip()
 
-
     if not user_message:
+        return {"reply": "Please enter a message."}
 
-        return {
-            "reply":
-                "Please enter a message."
-        }
+    if len(user_message) > MAX_MESSAGE_CHARS:
+        return {"reply": f"Message is too long (max {MAX_MESSAGE_CHARS} characters)."}
 
-
-    print(
-        "User:",
-        user_message
-    )
-
-
-    # -----------------------------------------------------
-    # CHECK GROQ
-    # -----------------------------------------------------
+    print(f"\n=== CHAT | user {user_id} ===")
+    print("User:", user_message)
 
     if openai_client is None:
+        return {"reply": "⚠️ Groq API key is not configured on the backend."}
 
-        return {
-            "reply":
-                (
-                    "⚠️ Groq API key is not configured "
-                    "on the backend."
-                )
-        }
+    # Load this user's memory + search this user's documents
+    conversation_history = load_history(user_id)
+    rag_result = search_rag(user_id, user_message)
 
-
-    # -----------------------------------------------------
-    # SEARCH RAG
-    # -----------------------------------------------------
-
-    rag_result = search_rag(
-        user_message
-    )
-
-    rag_context = rag_result[
-        "context"
-    ]
-
-    sources = rag_result[
-        "sources"
-    ]
-
-
-    # -----------------------------------------------------
-    # BUILD USER MESSAGE
-    # -----------------------------------------------------
+    rag_context = rag_result["context"]
+    sources = rag_result["sources"]
 
     if rag_context:
-
         user_content = f"""
 User question:
 
 {user_message}
 
-Relevant information from uploaded documents:
+Relevant information from the user's uploaded documents:
 
 {rag_context}
 
 Use the document information when it is relevant.
+
 If the document information does not answer the
 question, you may use your general knowledge.
+
+Do not claim that the document information came
+from the internet.
 """
-
     else:
-
         user_content = user_message
 
-
-    # -----------------------------------------------------
-    # BUILD MESSAGES
-    # -----------------------------------------------------
-
-    messages = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT
-        }
-    ]
-
-
-    # Add previous conversation memory
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     for item in conversation_history:
-
-        if not isinstance(
-            item,
-            dict
-        ):
+        if not isinstance(item, dict):
             continue
 
-        role = item.get(
-            "role"
-        )
+        role = item.get("role")
+        content = item.get("content")
 
-        content = item.get(
-            "content"
-        )
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
 
+    messages.append({"role": "user", "content": user_content})
 
-        if role in (
-            "user",
-            "assistant"
-        ) and content:
-
-            messages.append(
-                {
-                    "role": role,
-                    "content": content
-                }
-            )
-
-
-    # Add current message
-
-    messages.append(
-        {
-            "role": "user",
-            "content": user_content
-        }
-    )
-
-
-    # -----------------------------------------------------
-    # GROQ REQUEST
-    # -----------------------------------------------------
-
+    # Groq request with retries
     response = None
-
     last_error = None
 
-
     for attempt in range(3):
-
         try:
-
-            print(
-                f"Groq request attempt {attempt + 1}"
+            print(f"Groq request attempt {attempt + 1}")
+            response = openai_client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=messages,
             )
-
-
-            response = (
-                openai_client.chat.completions.create(
-                    model=GROQ_MODEL,
-                    messages=messages
-                )
-            )
-
-
             break
-
-
         except Exception as e:
-
             last_error = e
-
-            print(
-                "GROQ ERROR:",
-                e
-            )
-
+            print("GROQ ERROR:", e)
 
             if attempt < 2:
-
-                wait_time = (
-                    2 ** attempt
-                )
-
-                print(
-                    f"Retrying in {wait_time} seconds..."
-                )
-
-                time.sleep(
-                    wait_time
-                )
-
-
-    # -----------------------------------------------------
-    # GROQ FAILED
-    # -----------------------------------------------------
+                time.sleep(2 ** attempt)
 
     if response is None:
-
-        print(
-            "GROQ FINAL ERROR:",
-            last_error
-        )
-
-
-        return {
-            "reply":
-                (
-                    "⚠️ I could not get a response "
-                    "from Groq.\n\n"
-                    f"Error: {str(last_error)}"
-                )
-        }
-
-
-    # -----------------------------------------------------
-    # EXTRACT RESPONSE
-    # -----------------------------------------------------
+        print("GROQ FINAL ERROR:", last_error)
+        return {"reply": "⚠️ I could not get a response from the AI right now. Please try again."}
 
     try:
-
-        assistant_message = (
-            response
-            .choices[0]
-            .message
-            .content
-        )
-
+        assistant_message = response.choices[0].message.content
     except Exception as e:
-
-        print(
-            "RESPONSE PARSING ERROR:",
-            e
-        )
-
-        return {
-            "reply":
-                "⚠️ Groq returned an invalid response."
-        }
-
+        print("RESPONSE PARSING ERROR:", e)
+        return {"reply": "⚠️ The AI returned an invalid response."}
 
     if not assistant_message:
+        assistant_message = "⚠️ The AI returned an empty response."
 
-        assistant_message = (
-            "⚠️ The AI returned an empty response."
-        )
+    assistant_message = assistant_message.strip()
 
-
-    assistant_message = (
-        assistant_message.strip()
-    )
-
-
-    # -----------------------------------------------------
-    # SAVE MEMORY
-    # -----------------------------------------------------
-
-    conversation_history.append(
-        {
-            "role": "user",
-            "content": user_message
-        }
-    )
-
-
-    conversation_history.append(
-        {
-            "role": "assistant",
-            "content": assistant_message
-        }
-    )
-
-
-    conversation_history = save_history(
-        conversation_history
-    )
-
-
-    # -----------------------------------------------------
-    # ADD SOURCES
-    # -----------------------------------------------------
+    # Save memory (re-load inside the lock so parallel requests don't lose messages)
+    with user_lock(user_id):
+        latest_history = load_history(user_id)
+        latest_history.append({"role": "user", "content": user_message})
+        latest_history.append({"role": "assistant", "content": assistant_message})
+        save_history(user_id, latest_history)
 
     final_reply = assistant_message
 
-
     if sources:
+        source_lines = [
+            f"• {s.get('source', 'Unknown')} — Page {s.get('page', 'Unknown')}"
+            for s in sources
+        ]
+        final_reply += "\n\n📚 Sources:\n" + "\n".join(source_lines)
 
-        source_lines = []
+    print("AI:", assistant_message)
 
-        for source in sources:
-
-            source_name = source.get(
-                "source",
-                "Unknown"
-            )
-
-            page = source.get(
-                "page",
-                "Unknown"
-            )
-
-            source_lines.append(
-                f"• {source_name} — Page {page}"
-            )
-
-
-        final_reply += (
-            "\n\n📚 Sources:\n"
-            + "\n".join(source_lines)
-        )
-
-
-    # -----------------------------------------------------
-    # RETURN
-    # -----------------------------------------------------
-
-    print()
-    print(
-        "AI:",
-        assistant_message
-    )
-
-    print(
-        "Sources:",
-        sources
-    )
-
-
-    return {
-        "reply": final_reply,
-        "sources": sources
-    }
+    return {"reply": final_reply, "sources": sources}
 
 
 # =========================================================
-# RESET MEMORY
+# RESET (clears ONLY the logged-in user's memory)
 # =========================================================
 
 @app.post("/reset")
-def reset_memory():
+def reset_memory(user_id: str = Depends(get_current_user)):
 
-    global conversation_history
+    with user_lock(user_id):
+        save_history(user_id, [])
 
-    conversation_history = []
-
-    save_history(
-        conversation_history
-    )
-
-    print(
-        "=== MEMORY RESET ==="
-    )
+    print(f"=== MEMORY RESET | user {user_id} ===")
 
     return {
-        "success":
-            True,
-
-        "message":
-            "Conversation memory has been reset."
+        "success": True,
+        "message": "Your conversation memory has been reset.",
     }
 
 
 # =========================================================
-# PDF UPLOAD
+# LIST MY DOCUMENTS
+# =========================================================
+
+@app.get("/documents")
+def list_documents(user_id: str = Depends(get_current_user)):
+
+    rag_documents = load_rag(user_id)
+
+    counts = {}
+    for d in rag_documents:
+        name = d.get("source", "Unknown")
+        counts[name] = counts.get(name, 0) + 1
+
+    return {
+        "success": True,
+        "documents": [{"filename": n, "chunks": c} for n, c in counts.items()],
+    }
+
+
+# =========================================================
+# PDF UPLOAD (plain "def": PDF parsing is CPU work, runs in a thread)
 # =========================================================
 
 @app.post("/upload")
-async def upload_document(
-    file: UploadFile = File(...)
+def upload_document(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
 ):
 
-    global rag_documents
-
-
-    print()
-    print("================================")
-    print("NEW PDF UPLOAD")
-    print("================================")
-
-
-    # -----------------------------------------------------
-    # CHECK FILENAME
-    # -----------------------------------------------------
+    print(f"\n=== PDF UPLOAD | user {user_id} ===")
 
     if not file.filename:
+        return {"success": False, "message": "No filename provided."}
 
-        return {
-            "success":
-                False,
+    filename = safe_filename(file.filename)
 
-            "message":
-                "No filename provided."
-        }
+    if not filename.lower().endswith(".pdf"):
+        return {"success": False, "message": "Only PDF files are supported."}
 
+    print("Filename:", filename)
 
-    # Use only the filename, not any possible path
-
-    filename = os.path.basename(
-        file.filename
-    )
-
-
-    print(
-        "Filename:",
-        filename
-    )
-
-
-    # -----------------------------------------------------
-    # CHECK PDF
-    # -----------------------------------------------------
-
-    if not filename.lower().endswith(
-        ".pdf"
-    ):
-
-        return {
-            "success":
-                False,
-
-            "message":
-                "Only PDF files are supported."
-        }
-
-
-    # -----------------------------------------------------
-    # CHECK DUPLICATE
-    # -----------------------------------------------------
-
-    if document_exists(
-        filename
-    ):
-
-        return {
-            "success":
-                False,
-
-            "message":
-                "This PDF is already uploaded."
-        }
-
-
-    # -----------------------------------------------------
-    # READ FILE
-    # -----------------------------------------------------
-
+    # Read at most limit + 1 bytes so oversized files are rejected early
     try:
-
-        file_data = await file.read()
-
+        file_data = file.file.read(MAX_UPLOAD_BYTES + 1)
     except Exception as e:
-
-        print(
-            "FILE READ ERROR:",
-            e
-        )
-
-        return {
-            "success":
-                False,
-
-            "message":
-                f"Could not read PDF: {e}"
-        }
-
+        print("FILE READ ERROR:", e)
+        return {"success": False, "message": "Could not read the uploaded file."}
 
     if not file_data:
+        return {"success": False, "message": "The uploaded PDF is empty."}
 
+    if len(file_data) > MAX_UPLOAD_BYTES:
         return {
-            "success":
-                False,
-
-            "message":
-                "The uploaded PDF is empty."
+            "success": False,
+            "message": f"PDF is too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB).",
         }
 
-
-    # -----------------------------------------------------
-    # EXTRACT TEXT
-    # -----------------------------------------------------
-
+    # Extract text
     try:
+        reader = PdfReader(BytesIO(file_data))
 
-        pdf_file = BytesIO(
-            file_data
-        )
-
-        reader = PdfReader(
-            pdf_file
-        )
+        if reader.is_encrypted:
+            return {"success": False, "message": "Password-protected PDFs are not supported."}
 
         all_chunks = []
 
-
-        for page_number, page in enumerate(
-            reader.pages,
-            start=1
-        ):
-
+        for page_number, page in enumerate(reader.pages, start=1):
             try:
-
                 page_text = page.extract_text()
 
-
                 if page_text:
-
-                    page_chunks = create_chunks(
-                        page_text,
-                        page_number
-                    )
-
-
-                    all_chunks.extend(
-                        page_chunks
-                    )
-
+                    all_chunks.extend(create_chunks(page_text, page_number))
 
             except Exception as e:
+                print(f"Could not read page {page_number}:", e)
 
-                print(
-                    f"Could not read page {page_number}:",
-                    e
-                )
-
-
-        if not all_chunks:
-
-            return {
-                "success":
-                    False,
-
-                "message":
-                    (
-                        "No readable text was found in the PDF. "
-                        "If this is a scanned PDF, OCR will be "
-                        "needed later."
-                    )
-            }
-
+        page_count = len(reader.pages)
 
     except Exception as e:
+        print("PDF EXTRACTION ERROR:", e)
+        return {"success": False, "message": "Could not read this PDF. Is it a valid file?"}
 
-        print(
-            "PDF EXTRACTION ERROR:",
-            e
-        )
-
+    if not all_chunks:
         return {
-            "success":
-                False,
-
-            "message":
-                f"Could not extract PDF text: {e}"
+            "success": False,
+            "message": (
+                "No readable text was found in the PDF. "
+                "If this is a scanned PDF, OCR will be needed later."
+            ),
         }
 
+    new_documents = [
+        {"source": filename, "page": c["page"], "text": c["text"]}
+        for c in all_chunks
+    ]
 
-    # -----------------------------------------------------
-    # SAVE ORIGINAL PDF
-    # -----------------------------------------------------
+    # Duplicate check + save, under this user's lock
+    with user_lock(user_id):
 
-    pdf_path = os.path.join(
-        DOCUMENTS_DIR,
-        filename
-    )
+        rag_documents = load_rag(user_id)
 
+        if document_exists(rag_documents, filename):
+            return {"success": False, "message": "This PDF is already uploaded."}
 
-    try:
+        paths = get_user_paths(user_id)
+        pdf_path = os.path.join(paths["documents_dir"], filename)
 
-        with open(
-            pdf_path,
-            "wb"
-        ) as f:
+        try:
+            with open(pdf_path, "wb") as f:
+                f.write(file_data)
+        except Exception as e:
+            print("PDF SAVE ERROR:", e)
+            return {"success": False, "message": "Could not save the PDF."}
 
-            f.write(
-                file_data
-            )
+        try:
+            rag_documents.extend(new_documents)
+            save_rag(user_id, rag_documents)
+        except Exception as e:
+            print("RAG SAVE ERROR:", e)
+            return {"success": False, "message": "Could not save the document to your knowledge base."}
 
-    except Exception as e:
+        total_chunks = len(rag_documents)
 
-        print(
-            "PDF SAVE ERROR:",
-            e
-        )
-
-        return {
-            "success":
-                False,
-
-            "message":
-                f"Could not save PDF: {e}"
-        }
-
-
-    # -----------------------------------------------------
-    # PREPARE RAG DOCUMENTS
-    # -----------------------------------------------------
-
-    new_documents = []
-
-
-    for chunk in all_chunks:
-
-        new_documents.append(
-            {
-                "source":
-                    filename,
-
-                "page":
-                    chunk["page"],
-
-                "text":
-                    chunk["text"]
-            }
-        )
-
-
-    # -----------------------------------------------------
-    # ADD TO LOCAL RAG
-    # -----------------------------------------------------
-
-    try:
-
-        rag_documents.extend(
-            new_documents
-        )
-
-        save_rag(
-            rag_documents
-        )
-
-
-    except Exception as e:
-
-        print(
-            "RAG SAVE ERROR:",
-            e
-        )
-
-        return {
-            "success":
-                False,
-
-            "message":
-                f"Could not save document to RAG: {e}"
-        }
-
-
-    # -----------------------------------------------------
-    # SUCCESS
-    # -----------------------------------------------------
-
-    print()
-    print("================================")
-    print("PDF UPLOADED SUCCESSFULLY")
-    print("================================")
-
-
-    print(
-        "Filename:",
-        filename
-    )
-
-
-    print(
-        "Pages:",
-        len(reader.pages)
-    )
-
-
-    print(
-        "Chunks added:",
-        len(new_documents)
-    )
-
-
-    print(
-        "Total RAG chunks:",
-        len(rag_documents)
-    )
-
+    print(f"PDF uploaded: {filename} | pages {page_count} | chunks {len(new_documents)}")
 
     return {
-        "success":
-            True,
-
-        "message":
-            "PDF uploaded successfully.",
-
-        "filename":
-            filename,
-
-        "pages":
-            len(reader.pages),
-
-        "chunks_added":
-            len(new_documents),
-
-        "total_rag_chunks":
-            len(rag_documents)
+        "success": True,
+        "message": "PDF uploaded successfully.",
+        "filename": filename,
+        "pages": page_count,
+        "chunks_added": len(new_documents),
+        "total_rag_chunks": total_chunks,
     }
