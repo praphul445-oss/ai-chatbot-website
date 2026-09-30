@@ -205,19 +205,26 @@ async def get_current_user(authorization: str = Header(None)):
         print("AUTH ERROR:", e)
         raise HTTPException(status_code=503, detail="Could not verify login. Try again.")
 
-    if r.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid or expired login.")
+if r.status_code != 200:
+    print("=== SUPABASE AUTH DEBUG ===")
+    print("Supabase status:", r.status_code)
+    print("Supabase response:", r.text[:500])
+    print("===========================")
 
-    try:
-        user_id = clean_user_id(r.json().get("id"))
-    except Exception:
-        user_id = None
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid or expired login."
+    )
 
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid user.")
+try:
+    user_id = clean_user_id(r.json().get("id"))
+except Exception:
+    user_id = None
 
-    return user_id
+if not user_id:
+    raise HTTPException(status_code=401, detail="Invalid user.")
 
+return user_id
 
 # =========================================================
 # PER-USER LOCKS (prevents two requests corrupting one file)
