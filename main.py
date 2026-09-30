@@ -10,7 +10,8 @@ Environment variables (set these on Render and in a local .env / shell):
     GROQ_API_KEY        required
     GROQ_MODEL          optional (default llama-3.3-70b-versatile)
     SUPABASE_URL        required  e.g. https://xxxx.supabase.co
-    SUPABASE_ANON_KEY   required  (anon key only, NEVER the service role key)
+    SUPABASE_ANON_KEY   optional if SUPABASE_PUBLISHABLE_KEY is used
+    SUPABASE_PUBLISHABLE_KEY optional alternative auth key
     ALLOWED_ORIGINS     optional  comma separated, e.g. https://mysite.com
                         (default "*" = allow all, fine for testing)
     DATA_DIR            optional  where user data is stored. Point this at a
@@ -40,7 +41,7 @@ from pypdf import PdfReader
 app = FastAPI(
     title="My AI Chatbot API",
     description="AI Chatbot with Groq, verified Supabase auth, per-user memory and per-user RAG",
-    version="9.0",
+    version="9.1",
 )
 
 
@@ -72,8 +73,23 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
-SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+def clean_env_value(value):
+    """Trim whitespace and accidental surrounding quotes from Render env values."""
+    if value is None:
+        return ""
+    value = str(value).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("\"", "'"):
+        value = value[1:-1].strip()
+    return value
+
+
+SUPABASE_URL = clean_env_value(os.getenv("SUPABASE_URL")).rstrip("/")
+
+# Render can use the legacy name SUPABASE_ANON_KEY or the newer
+# SUPABASE_PUBLISHABLE_KEY. We accept either, without changing the frontend.
+SUPABASE_ANON_KEY = clean_env_value(os.getenv("SUPABASE_ANON_KEY"))
+SUPABASE_PUBLISHABLE_KEY = clean_env_value(os.getenv("SUPABASE_PUBLISHABLE_KEY"))
+SUPABASE_KEY = SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_DIR = os.getenv("DATA_DIR") or os.path.join(BASE_DIR, "data", "users")
@@ -100,8 +116,12 @@ else:
     openai_client = None
     print("=== WARNING: GROQ_API_KEY NOT SET ===")
 
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    print("=== WARNING: SUPABASE_URL / SUPABASE_ANON_KEY NOT SET (all requests will fail auth) ===")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("=== WARNING: SUPABASE_URL / SUPABASE auth key NOT SET (all requests will fail auth) ===")
+else:
+    key_source = "SUPABASE_ANON_KEY" if SUPABASE_ANON_KEY else "SUPABASE_PUBLISHABLE_KEY"
+    print("Supabase URL:", SUPABASE_URL)
+    print("Supabase auth key source:", key_source)
 
 
 # =========================================================
@@ -189,7 +209,7 @@ async def get_current_user(authorization: str = Header(None)):
     if not token:
         raise HTTPException(status_code=401, detail="Missing login token.")
 
-    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Auth is not configured on the server.")
 
     try:
@@ -198,33 +218,30 @@ async def get_current_user(authorization: str = Header(None)):
                 f"{SUPABASE_URL}/auth/v1/user",
                 headers={
                     "Authorization": f"Bearer {token}",
-                    "apikey": SUPABASE_ANON_KEY,
+                    "apikey": SUPABASE_KEY,
                 },
             )
     except Exception as e:
-        print("AUTH ERROR:", e)
+        print("AUTH ERROR:", repr(e))
         raise HTTPException(status_code=503, detail="Could not verify login. Try again.")
 
-if r.status_code != 200:
-    print("=== SUPABASE AUTH DEBUG ===")
-    print("Supabase status:", r.status_code)
-    print("Supabase response:", r.text[:500])
-    print("===========================")
+    # Diagnostic logging for the current 401 problem. NEVER log the access
+    # token or the Supabase key. The response body is truncated.
+    print("SUPABASE AUTH STATUS:", r.status_code)
+    if r.status_code != 200:
+        print("SUPABASE AUTH BODY:", r.text[:500])
+        raise HTTPException(status_code=401, detail="Invalid or expired login.")
 
-    raise HTTPException(
-        status_code=401,
-        detail="Invalid or expired login."
-    )
+    try:
+        user_id = clean_user_id(r.json().get("id"))
+    except Exception:
+        user_id = None
 
-try:
-    user_id = clean_user_id(r.json().get("id"))
-except Exception:
-    user_id = None
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user.")
 
-if not user_id:
-    raise HTTPException(status_code=401, detail="Invalid user.")
+    return user_id
 
-return user_id
 
 # =========================================================
 # PER-USER LOCKS (prevents two requests corrupting one file)
@@ -479,7 +496,7 @@ def search_rag(user_id, query):
 def home():
     return {
         "message": "AI Chatbot backend is running!",
-        "version": "9.0",
+        "version": "9.1",
         "ai": "Groq",
         "model": GROQ_MODEL,
         "auth": "Supabase (verified token)",
