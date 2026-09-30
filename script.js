@@ -1,2020 +1,2135 @@
 /* =========================================================
    MY AI ASSISTANT
-   COMPLETE RESPONSIVE STYLESHEET
-   Desktop + Mobile
+   Authentication + Chatbot + PDF/RAG + Supabase Cloud History
+   (v9: every backend request now sends the Supabase login token)
    ========================================================= */
 
 
 /* =========================================================
-   1. GLOBAL
+   1. SUPABASE
    ========================================================= */
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+const SUPABASE_URL =
+    "https://jjuuilevlddifxoitffp.supabase.co";
 
-html {
-    width: 100%;
-    height: 100%;
-}
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_eQFWdaObL0JtrBmkwqJ_sw_lzbtjt-I";
 
-body {
-    width: 100%;
-    height: 100%;
-    min-height: 100vh;
-
-    margin: 0;
-
-    background: #0b0b0f;
-    color: #f5f5f5;
-
-    font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Helvetica,
-        Arial,
-        sans-serif;
-
-    overflow: hidden;
-}
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
 
 
 /* =========================================================
-   2. HIDDEN ELEMENTS
+   2. BACKEND
    ========================================================= */
 
-[hidden] {
-    display: none !important;
-}
+const BACKEND_URL =
+    "https://ai-chatbot-website-zlqu.onrender.com";
 
 
 /* =========================================================
-   3. AUTHENTICATION SCREEN
+   2b. AUTH TOKEN HELPERS
    ========================================================= */
 
-.auth-screen {
-    width: 100%;
-    height: 100dvh;
+/*
+   Returns the current Supabase access token, or null if the
+   user is not logged in. getSession() refreshes the token
+   automatically when it is about to expire, so we call it
+   before every backend request instead of saving a token.
+*/
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+async function getAccessToken() {
 
-    padding: 20px;
+    const { data, error } =
+        await supabaseClient.auth.getSession();
 
-    background:
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 45%),
-        #0b0b0f;
+    if (error || !data || !data.session) {
 
-    overflow-y: auto;
-}
+        return null;
 
-.auth-card {
-    width: 100%;
-    max-width: 430px;
-
-    padding: 32px;
-
-    background: #141419;
-
-    border: 1px solid #2a2a31;
-    border-radius: 18px;
-
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-}
-
-.auth-logo {
-    width: 64px;
-    height: 64px;
-
-    margin: 0 auto 18px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #202027;
-
-    border: 1px solid #34343d;
-    border-radius: 16px;
-
-    font-size: 32px;
-}
-
-.auth-title {
-    text-align: center;
-
-    font-size: 28px;
-    font-weight: 700;
-
-    margin-bottom: 8px;
-}
-
-.auth-subtitle {
-    text-align: center;
-
-    color: #9999a3;
-
-    font-size: 14px;
-
-    margin-bottom: 26px;
-}
-
-
-/* =========================================================
-   4. AUTH TABS
-   ========================================================= */
-
-.auth-tabs {
-    display: flex;
-
-    gap: 4px;
-
-    margin-bottom: 22px;
-
-    padding: 4px;
-
-    background: #0e0e12;
-
-    border: 1px solid #27272e;
-    border-radius: 10px;
-}
-
-.auth-tab {
-    flex: 1;
-
-    border: none;
-    border-radius: 7px;
-
-    padding: 10px;
-
-    background: transparent;
-
-    color: #92929c;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        color 0.2s ease;
-}
-
-.auth-tab:hover {
-    color: #ffffff;
-}
-
-.auth-tab.active {
-    background: #292930;
-    color: #ffffff;
-}
-
-
-/* =========================================================
-   5. AUTH FORMS
-   ========================================================= */
-
-.auth-form {
-    display: none;
-
-    flex-direction: column;
-
-    gap: 14px;
-}
-
-.auth-form.active {
-    display: flex;
-}
-
-.auth-label {
-    color: #c8c8d0;
-
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.auth-input {
-    width: 100%;
-
-    padding: 13px 14px;
-
-    background: #0d0d11;
-
-    color: #ffffff;
-
-    border: 1px solid #303039;
-    border-radius: 10px;
-
-    outline: none;
-
-    font-size: 15px;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-}
-
-.auth-input::placeholder {
-    color: #65656e;
-}
-
-.auth-input:focus {
-    border-color: #666671;
-
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
-}
-
-.auth-button {
-    width: 100%;
-
-    margin-top: 6px;
-
-    padding: 13px 16px;
-
-    border: none;
-    border-radius: 10px;
-
-    background: #ffffff;
-
-    color: #111111;
-
-    font-size: 15px;
-    font-weight: 700;
-
-    cursor: pointer;
-
-    transition:
-        opacity 0.2s ease,
-        transform 0.1s ease;
-}
-
-.auth-button:hover {
-    opacity: 0.9;
-}
-
-.auth-button:active {
-    transform: scale(0.99);
-}
-
-.auth-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.auth-message {
-    min-height: 20px;
-
-    margin-top: 4px;
-
-    text-align: center;
-
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.auth-message.error {
-    color: #ff7070;
-}
-
-.auth-message.success {
-    color: #7ee2a8;
-}
-
-.auth-footer {
-    margin-top: 22px;
-
-    text-align: center;
-
-    color: #707079;
-
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   6. MAIN APPLICATION
-   ========================================================= */
-
-#appShell {
-    position: relative;
-
-    width: 100%;
-    height: 100dvh;
-
-    display: flex;
-
-    overflow: hidden;
-
-    background: #0b0b0f;
-}
-
-
-/* =========================================================
-   7. SIDEBAR
-   ========================================================= */
-
-.sidebar {
-    width: 260px;
-    min-width: 260px;
-
-    height: 100dvh;
-
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-
-    background: #111116;
-
-    border-right: 1px solid #29292f;
-
-    z-index: 1000;
-}
-
-
-/* =========================================================
-   8. BRAND
-   ========================================================= */
-
-.brand {
-    display: flex;
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 20px 18px;
-
-    border-bottom: 1px solid #25252c;
-}
-
-.brand-icon {
-    width: 38px;
-    height: 38px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #202027;
-
-    border: 1px solid #35353e;
-    border-radius: 10px;
-
-    font-size: 21px;
-
-    flex-shrink: 0;
-}
-
-.brand-text {
-    color: #ffffff;
-
-    font-size: 16px;
-    font-weight: 700;
-
-    white-space: nowrap;
-}
-
-
-/* =========================================================
-   9. NEW CHAT BUTTON
-   ========================================================= */
-
-.new-chat-btn {
-    margin: 16px 14px 12px;
-
-    padding: 12px 14px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    gap: 8px;
-
-    border: 1px solid #35353e;
-    border-radius: 10px;
-
-    background: #1c1c22;
-
-    color: #ffffff;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
-}
-
-.new-chat-btn:hover {
-    background: #25252c;
-    border-color: #45454e;
-}
-
-
-/* =========================================================
-   10. NAVIGATION
-   ========================================================= */
-
-.sidebar-nav {
-    flex: 1;
-
-    padding: 4px 10px;
-
-    overflow-y: auto;
-}
-
-.nav-item {
-    width: 100%;
-
-    display: flex;
-    align-items: center;
-
-    gap: 12px;
-
-    margin-bottom: 4px;
-
-    padding: 11px 12px;
-
-    border: none;
-    border-radius: 9px;
-
-    background: transparent;
-
-    color: #a7a7b0;
-
-    text-align: left;
-
-    font-size: 14px;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        color 0.2s ease;
-}
-
-.nav-item:hover {
-    background: #1c1c22;
-    color: #ffffff;
-}
-
-.nav-item.active {
-    background: rgba(0, 229, 255, 0.1);
-    color: #00e5ff;
-
-    border-left: 3px solid #00e5ff;
-}
-
-.nav-icon {
-    width: 22px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 17px;
-
-    flex-shrink: 0;
-}
-
-
-/* =========================================================
-   11. USER ACCOUNT
-   ========================================================= */
-
-.user-account {
-    display: flex;
-    align-items: center;
-
-    gap: 10px;
-
-    margin: 10px 12px;
-
-    padding: 10px;
-
-    background: #18181e;
-
-    border: 1px solid #292930;
-    border-radius: 10px;
-}
-
-.user-avatar {
-    width: 34px;
-    height: 34px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border-radius: 50%;
-
-    background: #303039;
-
-    color: #ffffff;
-
-    font-size: 14px;
-    font-weight: 700;
-
-    flex-shrink: 0;
-}
-
-.user-details {
-    min-width: 0;
-
-    flex: 1;
-}
-
-.user-label {
-    color: #777780;
-
-    font-size: 10px;
-
-    margin-bottom: 2px;
-}
-
-.user-email {
-    color: #ddddE3;
-
-    font-size: 12px;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.logout-button {
-    border: none;
-
-    background: transparent;
-
-    color: #85858e;
-
-    font-size: 12px;
-
-    cursor: pointer;
-}
-
-.logout-button:hover {
-    color: #ffffff;
-}
-
-
-/* =========================================================
-   12. SIDEBAR FOOTER
-   ========================================================= */
-
-.sidebar-footer {
-    padding: 0 14px 16px;
-}
-
-.online-status {
-    display: flex;
-    align-items: center;
-
-    gap: 8px;
-
-    color: #85858e;
-
-    font-size: 11px;
-}
-
-.status-dot {
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background: #50d890;
-
-    box-shadow: 0 0 8px rgba(80, 216, 144, 0.5);
-}
-
-
-/* =========================================================
-   13. MAIN CONTENT
-   ========================================================= */
-
-.main-content {
-    flex: 1;
-
-    min-width: 0;
-
-    height: 100dvh;
-
-    display: flex;
-    flex-direction: column;
-
-    overflow: hidden;
-
-    background: #0b0b0f;
-}
-
-
-/* =========================================================
-   14. TOPBAR
-   ========================================================= */
-
-.topbar {
-    min-height: 74px;
-
-    display: flex;
-    align-items: center;
-
-    padding: 14px 24px;
-
-    background: #0e0e13;
-
-    border-bottom: 1px solid #29292f;
-
-    flex-shrink: 0;
-}
-
-.page-heading {
-    min-width: 0;
-}
-
-#pageTitle {
-    color: #f4f4f6;
-
-    font-size: 20px;
-    font-weight: 700;
-
-    margin-bottom: 4px;
-}
-
-#pageSubtitle {
-    color: #85858e;
-
-    font-size: 13px;
-}
-
-
-/* =========================================================
-   15. MOBILE MENU BUTTON
-   ========================================================= */
-
-.mobile-menu-button {
-    display: none;
-
-    width: 42px;
-    height: 42px;
-
-    margin-right: 12px;
-
-    align-items: center;
-    justify-content: center;
-
-    border: 1px solid #303039;
-    border-radius: 10px;
-
-    background: #18181e;
-
-    color: #ffffff;
-
-    font-size: 22px;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-}
-
-.mobile-menu-button:hover {
-    background: #25252c;
-}
-
-
-/* =========================================================
-   15b. MOBILE SIDEBAR OVERLAY
-   (a real element instead of a ::after pseudo-element,
-   so it can carry its own click-to-close handler)
-   ========================================================= */
-
-.sidebar-overlay {
-    display: none;
-
-    position: fixed;
-
-    inset: 0;
-
-    background: rgba(0, 0, 0, 0.58);
-
-    z-index: 999;
-}
-
-
-/* =========================================================
-   16. CONTENT SECTIONS
-   ========================================================= */
-
-.content-section {
-    display: none;
-
-    flex: 1;
-
-    min-height: 0;
-
-    overflow: hidden;
-}
-
-.content-section.active {
-    display: flex;
-    flex-direction: column;
-}
-
-
-/* =========================================================
-   17. CHAT SECTION
-   ========================================================= */
-
-#chatSection {
-    position: relative;
-
-    min-height: 0;
-}
-
-
-/* =========================================================
-   18. CHATBOX
-   ========================================================= */
-
-#chatbox {
-    flex: 1;
-
-    min-height: 0;
-
-    width: 100%;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    padding: 28px 30px 150px;
-
-    scroll-behavior: smooth;
-}
-
-
-/* Scrollbar */
-
-#chatbox::-webkit-scrollbar,
-.sidebar-nav::-webkit-scrollbar {
-    width: 7px;
-}
-
-#chatbox::-webkit-scrollbar-track,
-.sidebar-nav::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-#chatbox::-webkit-scrollbar-thumb,
-.sidebar-nav::-webkit-scrollbar-thumb {
-    background: #303039;
-
-    border-radius: 10px;
-}
-
-#chatbox::-webkit-scrollbar-thumb:hover,
-.sidebar-nav::-webkit-scrollbar-thumb:hover {
-    background: #45454e;
-}
-
-
-/* =========================================================
-   19. WELCOME MESSAGE
-   ========================================================= */
-
-.welcome-message {
-    width: 100%;
-
-    min-height: 60vh;
-
-    display: flex;
-    flex-direction: column;
-
-    align-items: center;
-    justify-content: center;
-
-    text-align: center;
-
-    padding: 40px 20px;
-}
-
-.welcome-icon {
-    width: 96px;
-    height: 96px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    margin-bottom: 28px;
-
-    background: #1d1d23;
-
-    border: 1px solid #34343c;
-    border-radius: 22px;
-
-    font-size: 48px;
-
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
-}
-
-.welcome-message h2 {
-    color: #f5f5f6;
-
-    font-size: 38px;
-    font-weight: 700;
-
-    margin-bottom: 12px;
-}
-
-.welcome-message p {
-    max-width: 650px;
-
-    color: #92929c;
-
-    font-size: 16px;
-    line-height: 1.6;
-}
-
-
-/* =========================================================
-   20. CHAT MESSAGES
-   ========================================================= */
-
-.message {
-    width: 100%;
-
-    display: flex;
-
-    margin-bottom: 18px;
-
-    animation: messageAppear 0.18s ease;
-}
-
-@keyframes messageAppear {
-
-    from {
-        opacity: 0;
-        transform: translateY(5px);
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    return data.session.access_token;
+
+}
+
+
+/*
+   Called when the backend says 401 (invalid/expired login)
+   or when no session exists.
+*/
+
+async function handleSessionExpired() {
+
+    try {
+
+        await supabaseClient.auth.signOut();
+
+    } catch (e) {
+
+        console.warn("Sign out failed:", e);
+
     }
 
-}
+    showLoginScreen();
 
+    alert("Your session expired. Please log in again.");
 
-/* USER MESSAGE */
-
-.user-message {
-    justify-content: flex-end;
-
-    padding-left: 15%;
-}
-
-.user-message .message-content {
-    max-width: 75%;
-
-    padding: 11px 15px;
-
-    background: #2b2b33;
-
-    color: #ffffff;
-
-    border-radius: 16px 16px 4px 16px;
-
-    line-height: 1.5;
-
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
-}
-
-
-/* AI MESSAGE */
-
-.ai-message {
-    justify-content: flex-start;
-
-    padding-right: 15%;
-}
-
-.ai-message .message-content {
-    max-width: 75%;
-
-    padding: 11px 15px;
-
-    background: transparent;
-
-    color: #eeeeF1;
-
-    border-radius: 16px;
-
-    line-height: 1.6;
-
-    word-wrap: break-word;
-    overflow-wrap: anywhere;
 }
 
 
 /* =========================================================
-   21. MESSAGE CONTENT
+   3. VARIABLES
    ========================================================= */
 
-.message-content {
-    font-size: 15px;
+let userInput;
+let chatbox;
+let sendButton;
+let pdfInput;
+let imageInput;
+let uploadStatus;
+let attachmentMenu;
 
-    white-space: pre-wrap;
+let welcomeScreen;
+let authScreen;
+let appShell;
+
+let authMessage;
+
+let loginButton;
+let signupButton;
+
+let userEmail;
+let userAvatar;
+
+let sidebarOverlay;
+
+
+/* =========================================================
+   4. CURRENT USER / CHAT
+   ========================================================= */
+
+let currentUserId = null;
+
+let currentMessages = [];
+
+let currentConversationId = null;
+
+
+/* =========================================================
+   4b. LOGO (used when the chat is reset to the welcome view)
+   ========================================================= */
+
+const LOGO_SRC =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg stroke='%2339ff8c' stroke-width='4' stroke-linecap='round'%3E%3Cline x1='30' y1='6' x2='30' y2='20'/%3E%3Cline x1='50' y1='6' x2='50' y2='20'/%3E%3Cline x1='70' y1='6' x2='70' y2='20'/%3E%3Cline x1='30' y1='80' x2='30' y2='94'/%3E%3Cline x1='50' y1='80' x2='50' y2='94'/%3E%3Cline x1='70' y1='80' x2='70' y2='94'/%3E%3Cline x1='6' y1='30' x2='20' y2='30'/%3E%3Cline x1='6' y1='50' x2='20' y2='50'/%3E%3Cline x1='6' y1='70' x2='20' y2='70'/%3E%3Cline x1='80' y1='30' x2='94' y2='30'/%3E%3Cline x1='80' y1='50' x2='94' y2='50'/%3E%3Cline x1='80' y1='70' x2='94' y2='70'/%3E%3C/g%3E%3Crect x='20' y='20' width='60' height='60' rx='10' fill='%230b0f14' stroke='%2300e5ff' stroke-width='4'/%3E%3Ccircle cx='50' cy='50' r='10' fill='none' stroke='%2300e5ff' stroke-width='4'/%3E%3Ccircle cx='50' cy='50' r='4' fill='%2339ff8c'/%3E%3Cline x1='50' y1='32' x2='50' y2='40' stroke='%2339ff8c' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='50' y1='60' x2='50' y2='68' stroke='%2339ff8c' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='32' y1='50' x2='40' y2='50' stroke='%2339ff8c' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='60' y1='50' x2='68' y2='50' stroke='%2339ff8c' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E";
+
+
+/* =========================================================
+   5. INITIALIZATION
+   ========================================================= */
+
+document.addEventListener("DOMContentLoaded", async function () {
+
+    /* ---------- DOM ---------- */
+
+    userInput = document.getElementById("userInput");
+    chatbox = document.getElementById("chatbox");
+    sendButton = document.getElementById("sendButton");
+    pdfInput = document.getElementById("pdfInput");
+    imageInput = document.getElementById("imageInput");
+    uploadStatus = document.getElementById("uploadStatus");
+    attachmentMenu = document.getElementById("attachmentMenu");
+
+    welcomeScreen = document.getElementById("welcomeScreen");
+    authScreen = document.getElementById("authScreen");
+    appShell = document.getElementById("appShell");
+
+    authMessage = document.getElementById("authMessage");
+
+    loginButton = document.getElementById("loginButton");
+    signupButton = document.getElementById("signupButton");
+
+    userEmail = document.getElementById("userEmail");
+    userAvatar = document.getElementById("userAvatar");
+
+    sidebarOverlay = document.getElementById("sidebarOverlay");
+
+
+    /* ---------- PDF ---------- */
+
+    if (pdfInput) {
+
+        pdfInput.addEventListener("change", function () {
+
+            if (pdfInput.files && pdfInput.files.length > 0) {
+
+                uploadPDF(pdfInput.files[0]);
+
+            }
+
+        });
+
+    }
+
+
+    /* ---------- IMAGE ---------- */
+
+    if (imageInput) {
+
+        imageInput.addEventListener("change", function () {
+
+            if (imageInput.files && imageInput.files.length > 0) {
+
+                handleImageSelected(imageInput.files[0]);
+
+            }
+
+        });
+
+    }
+
+
+    /* ---------- TEXTAREA ---------- */
+
+    if (userInput) {
+
+        userInput.addEventListener("input", autoResizeInput);
+
+        userInput.addEventListener("keydown", function (event) {
+
+            if (event.key === "Enter" && !event.shiftKey) {
+
+                event.preventDefault();
+
+                sendMessage();
+
+            }
+
+        });
+
+    }
+
+
+    /* ---------- CHECK EXISTING LOGIN SESSION ---------- */
+
+    try {
+
+        const { data, error } =
+            await supabaseClient.auth.getSession();
+
+        if (error) {
+
+            console.error("Session error:", error);
+
+            showLoginScreen();
+
+            return;
+
+        }
+
+        if (data && data.session && data.session.user) {
+
+            showApp(data.session.user);
+
+        } else {
+
+            showLoginScreen();
+
+        }
+
+    } catch (error) {
+
+        console.error("Authentication initialization error:", error);
+
+        showLoginScreen();
+
+    }
+
+});
+
+
+/* =========================================================
+   6. LOGIN SCREEN
+   ========================================================= */
+
+function showLoginScreen() {
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = false;
+
+    }
+
+    if (authScreen) {
+
+        authScreen.hidden = true;
+
+    }
+
+    if (appShell) {
+
+        appShell.hidden = true;
+
+    }
+
+    currentUserId = null;
+
+    currentConversationId = null;
+
+    currentMessages = [];
+
+    resetChatboxToWelcome();
+
+    closeSidebar();
+
+    clearAuthMessage();
+
 }
 
 
 /* =========================================================
-   21b. TYPING INDICATOR (animated triple dots)
+   7. RESET CHATBOX
    ========================================================= */
 
-.typing-dots {
-    display: inline-flex;
+function resetChatboxToWelcome() {
 
-    align-items: center;
+    if (!chatbox) {
 
-    gap: 4px;
+        return;
 
-    padding: 4px 0;
-}
-
-.typing-dot {
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background: #00e5ff;
-
-    box-shadow: 0 0 6px rgba(0, 229, 255, 0.7);
-
-    opacity: 0.4;
-
-    animation: typing-bounce 1.2s infinite ease-in-out;
-}
-
-.typing-dot:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.typing-dot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.typing-dot:nth-child(3) {
-    animation-delay: 0.4s;
-
-    background: #39ff8c;
-    box-shadow: 0 0 6px rgba(57, 255, 140, 0.7);
-}
-
-@keyframes typing-bounce {
-
-    0%,
-    60%,
-    100% {
-        transform: translateY(0);
-        opacity: 0.4;
     }
 
-    30% {
-        transform: translateY(-5px);
-        opacity: 1;
+    chatbox.innerHTML = `
+
+        <div class="welcome-message">
+
+            <div class="welcome-icon">
+
+                <img
+                    src="${LOGO_SRC}"
+                    alt="AI logo"
+                    width="56"
+                    height="56"
+                >
+
+            </div>
+
+            <h2>
+                How can I help you?
+            </h2>
+
+            <p>
+                Ask me anything or upload a document
+                to work with your knowledge base.
+            </p>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   8. OPEN AUTH SCREEN
+   ========================================================= */
+
+function openAuthScreen(form) {
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = true;
+
+    }
+
+    if (authScreen) {
+
+        authScreen.hidden = false;
+
+    }
+
+    showAuthForm(form || "login");
+
+}
+
+
+/* =========================================================
+   9. BACK TO WELCOME
+   ========================================================= */
+
+function backToWelcome() {
+
+    if (authScreen) {
+
+        authScreen.hidden = true;
+
+    }
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = false;
+
+    }
+
+    clearAuthMessage();
+
+}
+
+
+/* =========================================================
+   10. SHOW APPLICATION
+   ========================================================= */
+
+function showApp(user) {
+
+    if (!user || !user.id) {
+
+        return;
+
+    }
+
+    if (welcomeScreen) {
+
+        welcomeScreen.hidden = true;
+
+    }
+
+    if (authScreen) {
+
+        authScreen.hidden = true;
+
+    }
+
+    if (appShell) {
+
+        appShell.hidden = false;
+
+    }
+
+    const differentUser = currentUserId !== user.id;
+
+    if (differentUser) {
+
+        currentMessages = [];
+
+        currentConversationId = null;
+
+        resetChatboxToWelcome();
+
+    }
+
+    currentUserId = user.id;
+
+    updateUserDisplay(user);
+
+    autoResizeInput();
+
+    /* Load history after login. */
+
+    setTimeout(function () {
+
+        loadHistoryList();
+
+    }, 100);
+
+}
+
+
+/* =========================================================
+   11. USER DISPLAY
+   ========================================================= */
+
+function updateUserDisplay(user) {
+
+    if (!user) {
+
+        return;
+
+    }
+
+    const email = user.email || "User";
+
+    if (userEmail) {
+
+        userEmail.textContent = email;
+
+    }
+
+    if (userAvatar) {
+
+        userAvatar.textContent = email.charAt(0).toUpperCase();
+
     }
 
 }
 
 
 /* =========================================================
-   22. COMPOSER
+   12. AUTH FORM
    ========================================================= */
 
-.composer-container {
-    position: absolute;
+function showAuthForm(form) {
 
-    left: 50%;
-    bottom: 18px;
+    const loginForm = document.getElementById("loginForm");
+    const signupForm = document.getElementById("signupForm");
+    const loginTab = document.getElementById("loginTab");
+    const signupTab = document.getElementById("signupTab");
 
-    transform: translateX(-50%);
+    clearAuthMessage();
 
-    width: min(900px, calc(100% - 48px));
+    if (!loginForm || !signupForm || !loginTab || !signupTab) {
 
-    z-index: 100;
-}
+        console.error("Authentication form elements not found.");
 
+        return;
 
-/* =========================================================
-   23. COMPOSER BOX
-   ========================================================= */
-
-.composer-box {
-    position: relative;
-
-    display: flex;
-    align-items: flex-end;
-
-    gap: 8px;
-
-    padding: 8px;
-
-    background: #19191f;
-
-    border: 1px solid #34343d;
-
-    border-radius: 17px;
-
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
-}
-
-
-/* =========================================================
-   24. ATTACHMENT BUTTON
-   ========================================================= */
-
-.attachment-btn {
-    width: 40px;
-    height: 40px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border: none;
-    border-radius: 10px;
-
-    background: transparent;
-
-    color: #a3a3ad;
-
-    font-size: 22px;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-}
-
-.attachment-btn:hover {
-    background: #292930;
-
-    color: #ffffff;
-}
-
-
-/* =========================================================
-   25. TEXT INPUT
-   ========================================================= */
-
-#userInput {
-    flex: 1;
-
-    min-width: 0;
-
-    min-height: 40px;
-    max-height: 180px;
-
-    padding: 10px 8px;
-
-    resize: none;
-
-    border: none;
-    outline: none;
-
-    background: transparent;
-
-    color: #ffffff;
-
-    font-family: inherit;
-
-    font-size: 15px;
-
-    line-height: 1.45;
-
-    overflow-y: auto;
-}
-
-#userInput::placeholder {
-    color: #777780;
-}
-
-
-/* =========================================================
-   26. SEND BUTTON
-   ========================================================= */
-
-.send-btn {
-    width: 40px;
-    height: 40px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border: none;
-    border-radius: 10px;
-
-    background: linear-gradient(135deg, #00e5ff, #39ff8c);
-
-    color: #06110d;
-
-    font-size: 18px;
-    font-weight: 700;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-
-    transition:
-        opacity 0.2s ease,
-        transform 0.1s ease,
-        box-shadow 0.2s ease;
-}
-
-.send-btn:hover {
-    opacity: 0.92;
-    box-shadow: 0 0 14px rgba(0, 229, 255, 0.4);
-}
-
-.send-btn:active {
-    transform: scale(0.95);
-}
-
-.send-btn:disabled {
-    opacity: 0.45;
-
-    cursor: not-allowed;
-}
-
-
-/* =========================================================
-   27. ATTACHMENT MENU
-   ========================================================= */
-
-.attachment-menu {
-    position: absolute;
-
-    left: 8px;
-    bottom: calc(100% + 8px);
-
-    width: 190px;
-
-    display: none;
-
-    padding: 7px;
-
-    background: #19191f;
-
-    border: 1px solid #34343d;
-    border-radius: 12px;
-
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
-
-    z-index: 200;
-}
-
-.attachment-menu.show {
-    display: block;
-}
-
-.attachment-option {
-    width: 100%;
-
-    display: flex;
-    align-items: center;
-
-    gap: 10px;
-
-    padding: 10px 11px;
-
-    border: none;
-    border-radius: 8px;
-
-    background: transparent;
-
-    color: #ddddE3;
-
-    text-align: left;
-
-    font-size: 13px;
-
-    cursor: pointer;
-}
-
-.attachment-option:hover {
-    background: #292930;
-
-    color: #ffffff;
-}
-
-
-/* =========================================================
-   28. UPLOAD STATUS
-   ========================================================= */
-
-.upload-status {
-    min-height: 0;
-
-    margin-top: 7px;
-
-    text-align: center;
-
-    font-size: 12px;
-}
-
-.upload-status.loading {
-    color: #aaaab4;
-}
-
-.upload-status.success {
-    color: #75dfa1;
-}
-
-.upload-status.error {
-    color: #ff7474;
-}
-
-
-/* =========================================================
-   29. HISTORY SECTION
-   ========================================================= */
-
-#historySection {
-    padding: 24px;
-
-    overflow-y: auto;
-}
-
-.history-list {
-    display: flex;
-    flex-direction: column;
-
-    gap: 8px;
-}
-
-
-/* =========================================================
-   30. HISTORY ITEM
-   ========================================================= */
-
-.history-item {
-    display: flex;
-    align-items: center;
-
-    gap: 15px;
-
-    padding: 15px;
-
-    background: #15151a;
-
-    border: 1px solid #292930;
-    border-radius: 12px;
-
-    transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
-}
-
-.history-item:hover {
-    background: #1b1b21;
-
-    border-color: #3a3a43;
-}
-
-.history-item-main {
-    min-width: 0;
-
-    flex: 1;
-}
-
-.history-title {
-    color: #eeeeF2;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.history-date {
-    margin-top: 5px;
-
-    color: #777780;
-
-    font-size: 11px;
-}
-
-.history-open-btn {
-    padding: 8px 12px;
-
-    border: 1px solid #35353e;
-    border-radius: 8px;
-
-    background: #202027;
-
-    color: #ddddE3;
-
-    font-size: 12px;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-}
-
-.history-open-btn:hover {
-    background: #2b2b33;
-}
-
-
-/* =========================================================
-   31. EMPTY STATE
-   ========================================================= */
-
-.empty-state {
-    padding: 60px 20px;
-
-    text-align: center;
-}
-
-.empty-icon {
-    margin-bottom: 14px;
-
-    font-size: 36px;
-}
-
-.empty-state h3 {
-    margin-bottom: 7px;
-
-    font-size: 18px;
-}
-
-.empty-state p {
-    color: #777780;
-
-    font-size: 13px;
-}
-
-
-/* =========================================================
-   32. DANGER BUTTON
-   ========================================================= */
-
-.danger-btn {
-    padding: 10px 14px;
-
-    border: 1px solid #572d2d;
-    border-radius: 9px;
-
-    background: #261719;
-
-    color: #ff8585;
-
-    font-size: 13px;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-}
-
-.danger-btn:hover {
-    background: #351d1f;
-}
-
-
-/* =========================================================
-   33. DOCUMENTS / VISION / HARDWARE / SETTINGS
-   ========================================================= */
-
-#documentsSection,
-#visionSection,
-#hardwareSection,
-#settingsSection {
-    padding: 28px;
-
-    overflow-y: auto;
-}
-
-.documents-container {
-    width: 100%;
-    max-width: 1000px;
-
-    margin: 0 auto;
-}
-
-
-/* =========================================================
-   33a. DOCUMENTS LIST  (this user's uploaded PDFs)
-   ========================================================= */
-
-.documents-list {
-    display: flex;
-    flex-direction: column;
-
-    gap: 8px;
-}
-
-.document-item {
-    display: flex;
-    align-items: center;
-
-    gap: 14px;
-
-    padding: 14px 15px;
-
-    background: #15151a;
-
-    border: 1px solid #292930;
-    border-radius: 12px;
-
-    transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
-}
-
-.document-item:hover {
-    background: #1b1b21;
-
-    border-color: #3a3a43;
-}
-
-.document-icon {
-    width: 38px;
-    height: 38px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: #202027;
-
-    border: 1px solid #35353e;
-    border-radius: 10px;
-
-    font-size: 19px;
-
-    flex-shrink: 0;
-}
-
-.document-item-main {
-    min-width: 0;
-
-    flex: 1;
-}
-
-.document-name {
-    color: #eeeef2;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.document-meta {
-    margin-top: 4px;
-
-    color: #777780;
-
-    font-size: 11px;
-}
-
-
-/* =========================================================
-   33b. SECTION HEADER
-   (title + optional action button, used by every
-   non-chat section: History, Documents, Vision,
-   Hardware, Settings)
-   ========================================================= */
-
-.section-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-
-    gap: 16px;
-
-    flex-wrap: wrap;
-
-    max-width: 1000px;
-    margin: 0 auto 22px;
-}
-
-.section-header h2 {
-    margin-bottom: 6px;
-
-    font-size: 22px;
-    font-weight: 700;
-
-    color: #f4f4f6;
-}
-
-.section-header p {
-    color: #85858e;
-
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-
-/* =========================================================
-   34. PRIMARY BUTTON
-   ========================================================= */
-
-.primary-btn {
-    padding: 11px 16px;
-
-    border: none;
-    border-radius: 9px;
-
-    background: #ffffff;
-
-    color: #111111;
-
-    font-size: 13px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    flex-shrink: 0;
-}
-
-.primary-btn:hover {
-    opacity: 0.9;
-}
-
-
-/* =========================================================
-   35. MOBILE RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 768px) {
-
-    html,
-    body {
-        width: 100%;
-        height: 100%;
-
-        overflow: hidden;
     }
 
+    if (form === "login") {
 
-    /* APP */
+        loginForm.classList.add("active");
+        signupForm.classList.remove("active");
 
-    #appShell {
-        width: 100%;
-        height: 100dvh;
+        loginTab.classList.add("active");
+        signupTab.classList.remove("active");
 
-        min-height: 100dvh;
+    } else {
 
-        overflow: hidden;
-    }
+        signupForm.classList.add("active");
+        loginForm.classList.remove("active");
 
+        signupTab.classList.add("active");
+        loginTab.classList.remove("active");
 
-    /* MOBILE SIDEBAR */
-
-    .sidebar {
-        position: fixed;
-
-        top: 0;
-        left: 0;
-
-        width: 280px;
-        max-width: 82vw;
-
-        height: 100dvh;
-
-        z-index: 1000;
-
-        transform: translateX(-100%);
-
-        transition: transform 0.25s ease;
-
-        overflow-y: auto;
-        overflow-x: hidden;
-
-        box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
-    }
-
-    body.sidebar-open .sidebar {
-        transform: translateX(0);
-    }
-
-
-    /* DARK OVERLAY
-       (shown/hidden via the real .sidebar-overlay element,
-       not a ::after pseudo-element, so it can be clicked) */
-
-    body.sidebar-open .sidebar-overlay {
-        display: block;
-    }
-
-
-    /* MAIN CONTENT */
-
-    .main-content {
-        width: 100%;
-
-        min-width: 0;
-
-        height: 100dvh;
-
-        overflow: hidden;
-    }
-
-
-    /* TOPBAR */
-
-    .topbar {
-        width: 100%;
-
-        min-height: 68px;
-
-        padding: 12px 14px;
-
-        flex-shrink: 0;
-    }
-
-    .mobile-menu-button {
-        display: flex;
-    }
-
-    #pageTitle {
-        font-size: 19px;
-    }
-
-    #pageSubtitle {
-        font-size: 12px;
-    }
-
-
-    /* CHAT SECTION */
-
-    #chatSection {
-        width: 100%;
-
-        height: calc(100dvh - 68px);
-
-        min-height: 0;
-
-        display: flex;
-        flex-direction: column;
-
-        position: relative;
-
-        overflow: hidden;
-    }
-
-
-    /* CHATBOX */
-
-    #chatbox {
-        width: 100%;
-
-        flex: 1;
-
-        min-height: 0;
-
-        overflow-y: auto;
-        overflow-x: hidden;
-
-        padding: 18px 12px 125px;
-    }
-
-
-    /* WELCOME */
-
-    .welcome-message {
-        width: 100%;
-
-        min-height: 60vh;
-
-        padding: 25px 12px 40px;
-    }
-
-    .welcome-icon {
-        width: 82px;
-        height: 82px;
-
-        margin-bottom: 22px;
-
-        border-radius: 19px;
-
-        font-size: 40px;
-    }
-
-    .welcome-message h2 {
-        font-size: 28px;
-
-        line-height: 1.2;
-
-        margin-bottom: 12px;
-    }
-
-    .welcome-message p {
-        max-width: 360px;
-
-        font-size: 15px;
-
-        line-height: 1.55;
-    }
-
-
-    /* MESSAGES */
-
-    .message {
-        margin-bottom: 14px;
-    }
-
-    .user-message {
-        padding-left: 8%;
-    }
-
-    .ai-message {
-        padding-right: 8%;
-    }
-
-    .user-message .message-content,
-    .ai-message .message-content {
-        max-width: 88%;
-
-        font-size: 15px;
-
-        padding: 10px 13px;
-    }
-
-
-    /* COMPOSER */
-
-    .composer-container {
-        position: absolute;
-
-        left: 0;
-        right: 0;
-        bottom: 0;
-
-        transform: none;
-
-        width: 100%;
-
-        padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
-
-        z-index: 100;
-    }
-
-    .composer-box {
-        width: 100%;
-
-        padding: 7px;
-
-        border-radius: 15px;
-    }
-
-    .attachment-btn,
-    .send-btn {
-        width: 40px;
-        height: 40px;
-
-        flex-shrink: 0;
-    }
-
-    #userInput {
-        min-height: 40px;
-
-        max-height: 120px;
-
-        padding: 9px 5px;
-
-        font-size: 16px;
-    }
-
-
-    /* ATTACHMENT MENU */
-
-    .attachment-menu {
-        left: 8px;
-
-        bottom: calc(100% + 8px);
-
-        width: 185px;
-    }
-
-
-    /* HISTORY */
-
-    #historySection {
-        padding: 16px 12px;
-
-        overflow-y: auto;
-    }
-
-    .history-item {
-        padding: 13px;
-
-        gap: 10px;
-    }
-
-    .history-title {
-        font-size: 13px;
-    }
-
-    .history-date {
-        font-size: 10px;
-    }
-
-    .history-open-btn {
-        padding: 7px 10px;
-
-        flex-shrink: 0;
-    }
-
-
-    /* OTHER SECTIONS */
-
-    #documentsSection,
-    #visionSection,
-    #hardwareSection,
-    #settingsSection {
-        padding: 20px 14px;
-
-        overflow-y: auto;
-    }
-
-    .section-header h2 {
-        font-size: 19px;
-    }
-
-    .document-item {
-        padding: 12px;
-
-        gap: 11px;
-    }
-
-    .document-name {
-        font-size: 13px;
-    }
-
-
-    /* SIDEBAR BRAND */
-
-    .brand {
-        padding: 18px 16px;
-    }
-
-    .new-chat-btn {
-        margin: 14px 12px 10px;
-    }
-
-
-    /* AUTH MOBILE */
-
-    .auth-screen {
-        align-items: flex-start;
-
-        padding: 25px 16px;
-
-        padding-top: max(25px, env(safe-area-inset-top));
-    }
-
-    .auth-card {
-        max-width: 100%;
-
-        margin-top: 30px;
-
-        padding: 25px 20px;
-
-        border-radius: 16px;
-    }
-
-    .auth-title {
-        font-size: 25px;
     }
 
 }
 
 
 /* =========================================================
-   36. VERY SMALL PHONES
+   13. AUTH MESSAGE
    ========================================================= */
 
-@media (max-width: 390px) {
+function showAuthMessage(message, type = "") {
 
-    .sidebar {
-        width: 270px;
+    if (!authMessage) {
+
+        return;
+
     }
 
-    .topbar {
-        padding-left: 10px;
-        padding-right: 10px;
+    authMessage.textContent = message;
+
+    authMessage.className = "auth-message";
+
+    if (type) {
+
+        authMessage.classList.add(type);
+
     }
 
-    #pageTitle {
-        font-size: 18px;
+}
+
+
+function clearAuthMessage() {
+
+    if (!authMessage) {
+
+        return;
+
     }
 
-    #pageSubtitle {
-        font-size: 11px;
+    authMessage.textContent = "";
+
+    authMessage.className = "auth-message";
+
+}
+
+
+/* =========================================================
+   14. LOGIN
+   ========================================================= */
+
+async function loginUser(event) {
+
+    event.preventDefault();
+
+    const emailElement = document.getElementById("loginEmail");
+    const passwordElement = document.getElementById("loginPassword");
+
+    if (!emailElement || !passwordElement) {
+
+        showAuthMessage("Login form could not be loaded.", "error");
+
+        return;
+
     }
 
-    .welcome-message h2 {
-        font-size: 25px;
+    const email = emailElement.value.trim();
+    const password = passwordElement.value;
+
+    if (!email || !password) {
+
+        showAuthMessage("Please enter your email and password.", "error");
+
+        return;
+
     }
 
-    .welcome-message p {
-        font-size: 14px;
+    if (loginButton) {
+
+        loginButton.disabled = true;
+
+        loginButton.textContent = "Logging in...";
+
     }
 
-    .user-message .message-content,
-    .ai-message .message-content {
-        max-width: 92%;
+    clearAuthMessage();
 
-        font-size: 14px;
-    }
+    try {
 
-    .composer-container {
-        padding-left: 7px;
-        padding-right: 7px;
+        const { data, error } =
+            await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+        if (error) {
+
+            console.error("Login error:", error);
+
+            showAuthMessage(error.message || "Login failed.", "error");
+
+            return;
+
+        }
+
+        if (!data || !data.user) {
+
+            showAuthMessage(
+                "Login failed: no user session was returned.",
+                "error"
+            );
+
+            return;
+
+        }
+
+        /* Open the application directly (no waiting for onAuthStateChange). */
+
+        showAuthMessage("Login successful.", "success");
+
+        showApp(data.user);
+
+    } catch (error) {
+
+        console.error("Login exception:", error);
+
+        showAuthMessage(
+            error.message || "Something went wrong while logging in.",
+            "error"
+        );
+
+    } finally {
+
+        if (loginButton) {
+
+            loginButton.disabled = false;
+
+            loginButton.textContent = "Login";
+
+        }
+
     }
 
 }
 
 
 /* =========================================================
-   37. LANDSCAPE MOBILE
+   15. SIGN UP
    ========================================================= */
 
-@media (max-width: 900px) and (orientation: landscape) {
+async function signupUser(event) {
 
-    .topbar {
-        min-height: 58px;
+    event.preventDefault();
 
-        padding-top: 8px;
-        padding-bottom: 8px;
+    const emailElement = document.getElementById("signupEmail");
+    const passwordElement = document.getElementById("signupPassword");
+    const confirmElement = document.getElementById("signupConfirmPassword");
+
+    if (!emailElement || !passwordElement || !confirmElement) {
+
+        showAuthMessage("Signup form could not be loaded.", "error");
+
+        return;
+
     }
 
-    #chatSection {
-        height: calc(100dvh - 58px);
+    const email = emailElement.value.trim();
+    const password = passwordElement.value;
+    const confirmPassword = confirmElement.value;
+
+    if (!email) {
+
+        showAuthMessage("Please enter your email.", "error");
+
+        return;
+
     }
 
-    .welcome-message {
-        min-height: 100%;
+    if (password.length < 6) {
 
-        padding-top: 20px;
-        padding-bottom: 90px;
+        showAuthMessage("Password must be at least 6 characters.", "error");
+
+        return;
+
     }
 
-    .welcome-icon {
-        width: 60px;
-        height: 60px;
+    if (password !== confirmPassword) {
 
-        font-size: 30px;
+        showAuthMessage("Passwords do not match.", "error");
 
-        margin-bottom: 12px;
+        return;
+
     }
 
-    .welcome-message h2 {
-        font-size: 23px;
+    if (signupButton) {
+
+        signupButton.disabled = true;
+
+        signupButton.textContent = "Creating account...";
+
     }
 
-    .welcome-message p {
-        font-size: 13px;
-    }
+    clearAuthMessage();
 
-    #chatbox {
-        padding-bottom: 105px;
+    try {
+
+        const { data, error } =
+            await supabaseClient.auth.signUp({
+                email: email,
+                password: password
+            });
+
+        if (error) {
+
+            console.error("Signup error:", error);
+
+            showAuthMessage(
+                error.message || "Account creation failed.",
+                "error"
+            );
+
+            return;
+
+        }
+
+        /* Email verification may be required: user exists but no session. */
+
+        if (data && data.user && !data.session) {
+
+            showAuthMessage(
+                "Account created. Please verify your email before logging in.",
+                "success"
+            );
+
+            return;
+
+        }
+
+        if (data && data.session && data.user) {
+
+            showAuthMessage("Account created successfully.", "success");
+
+            showApp(data.user);
+
+        }
+
+    } catch (error) {
+
+        console.error("Signup exception:", error);
+
+        showAuthMessage(
+            error.message ||
+            "Something went wrong while creating your account.",
+            "error"
+        );
+
+    } finally {
+
+        if (signupButton) {
+
+            signupButton.disabled = false;
+
+            signupButton.textContent = "Create Account";
+
+        }
+
     }
 
 }
 
 
 /* =========================================================
-   38. REDUCED MOTION
+   16. LOGOUT
    ========================================================= */
 
-@media (prefers-reduced-motion: reduce) {
+async function logoutUser() {
 
-    *,
-    *::before,
-    *::after {
-        scroll-behavior: auto !important;
+    try {
 
-        transition: none !important;
+        const { error } = await supabaseClient.auth.signOut();
 
-        animation: none !important;
+        if (error) {
+
+            console.error("Logout error:", error);
+
+            alert("Logout failed. Please try again.");
+
+            return;
+
+        }
+
+        currentUserId = null;
+
+        currentConversationId = null;
+
+        currentMessages = [];
+
+        showLoginScreen();
+
+        const passwordElement = document.getElementById("loginPassword");
+
+        if (passwordElement) {
+
+            passwordElement.value = "";
+
+        }
+
+    } catch (error) {
+
+        console.error("Logout exception:", error);
+
+        alert("Something went wrong while logging out.");
+
     }
 
 }
+
+
+/* =========================================================
+   17. SEND MESSAGE  (sends the login token, no user_id)
+   ========================================================= */
+
+async function sendMessage() {
+
+    if (!userInput) {
+
+        return;
+
+    }
+
+    const message = userInput.value.trim();
+
+    if (!message) {
+
+        return;
+
+    }
+
+    if (!currentUserId) {
+
+        console.warn("No logged-in user.");
+
+        return;
+
+    }
+
+    toggleAttachmentMenu(false);
+
+    if (sendButton) {
+
+        sendButton.disabled = true;
+
+    }
+
+    userInput.disabled = true;
+
+    const wasNewConversation = !currentConversationId;
+
+    addMessage("user", message);
+
+    currentMessages.push({
+        role: "user",
+        content: message
+    });
+
+    userInput.value = "";
+
+    autoResizeInput();
+
+    const thinkingMessage = addTypingIndicator();
+
+    try {
+
+        const token = await getAccessToken();
+
+        if (!token) {
+
+            await handleSessionExpired();
+
+            throw new Error("No login session.");
+
+        }
+
+        const response = await fetch(
+            BACKEND_URL + "/chat",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+
+                body: JSON.stringify({
+                    message: message
+                })
+            }
+        );
+
+        if (response.status === 401) {
+
+            await handleSessionExpired();
+
+            throw new Error("Session expired.");
+
+        }
+
+        if (!response.ok) {
+
+            throw new Error("Server returned " + response.status);
+
+        }
+
+        const data = await response.json();
+
+        const reply =
+            data.response ||
+            data.message ||
+            data.reply ||
+            "I couldn't generate a response.";
+
+        updateMessage(thinkingMessage, reply);
+
+        currentMessages.push({
+            role: "assistant",
+            content: reply
+        });
+
+        if (wasNewConversation) {
+
+            await createConversation(message);
+
+        } else {
+
+            await updateCloudConversation();
+
+        }
+
+    } catch (error) {
+
+        console.error("Chat error:", error);
+
+        updateMessage(
+            thinkingMessage,
+            "Sorry, I couldn't connect to the AI server."
+        );
+
+        /* Remove the failed user message. */
+
+        currentMessages = currentMessages.slice(0, -1);
+
+    } finally {
+
+        if (sendButton) {
+
+            sendButton.disabled = false;
+
+        }
+
+        userInput.disabled = false;
+
+        userInput.focus();
+
+    }
+
+}
+
+
+/* =========================================================
+   18. ADD MESSAGE
+   ========================================================= */
+
+function addMessage(role, content) {
+
+    const messageDiv = document.createElement("div");
+
+    messageDiv.className =
+        role === "user"
+            ? "message user-message"
+            : "message ai-message";
+
+    const contentDiv = document.createElement("div");
+
+    contentDiv.className = "message-content";
+
+    contentDiv.textContent = content;
+
+    messageDiv.appendChild(contentDiv);
+
+    if (chatbox) {
+
+        chatbox.appendChild(messageDiv);
+
+    }
+
+    scrollToBottom();
+
+    return messageDiv;
+
+}
+
+
+/* =========================================================
+   19. TYPING INDICATOR
+   ========================================================= */
+
+function addTypingIndicator() {
+
+    const messageDiv = document.createElement("div");
+
+    messageDiv.className = "message ai-message";
+
+    const contentDiv = document.createElement("div");
+
+    contentDiv.className = "message-content";
+
+    const dots = document.createElement("span");
+
+    dots.className = "typing-dots";
+
+    for (let i = 0; i < 3; i++) {
+
+        const dot = document.createElement("span");
+
+        dot.className = "typing-dot";
+
+        dots.appendChild(dot);
+
+    }
+
+    contentDiv.appendChild(dots);
+
+    messageDiv.appendChild(contentDiv);
+
+    if (chatbox) {
+
+        chatbox.appendChild(messageDiv);
+
+    }
+
+    scrollToBottom();
+
+    return messageDiv;
+
+}
+
+
+/* =========================================================
+   20. UPDATE MESSAGE
+   ========================================================= */
+
+function updateMessage(messageElement, content) {
+
+    if (!messageElement) {
+
+        return;
+
+    }
+
+    const contentDiv =
+        messageElement.querySelector(".message-content");
+
+    if (contentDiv) {
+
+        contentDiv.textContent = content;
+
+    } else {
+
+        messageElement.textContent = content;
+
+    }
+
+    scrollToBottom();
+
+}
+
+
+/* =========================================================
+   21. PDF  (sends the login token, no user_id)
+   ========================================================= */
+
+function selectPDF() {
+
+    if (!pdfInput) {
+
+        return;
+
+    }
+
+    toggleAttachmentMenu(false);
+
+    pdfInput.click();
+
+}
+
+
+async function uploadPDF(file) {
+
+    if (!file) {
+
+        return;
+
+    }
+
+    if (file.type !== "application/pdf") {
+
+        showUploadStatus("Please select a PDF file.", "error");
+
+        return;
+
+    }
+
+    if (!currentUserId) {
+
+        showUploadStatus("Please log in again before uploading.", "error");
+
+        return;
+
+    }
+
+    showUploadStatus("Uploading PDF...", "loading");
+
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    try {
+
+        const token = await getAccessToken();
+
+        if (!token) {
+
+            await handleSessionExpired();
+
+            return;
+
+        }
+
+        /* Do NOT set Content-Type here: the browser sets it for FormData. */
+
+        const response = await fetch(
+            BACKEND_URL + "/upload",
+            {
+                method: "POST",
+
+                headers: {
+                    "Authorization": "Bearer " + token
+                },
+
+                body: formData
+            }
+        );
+
+        if (response.status === 401) {
+
+            await handleSessionExpired();
+
+            return;
+
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Upload failed with status " + response.status
+            );
+
+        }
+
+        const data = await response.json();
+
+        /* The backend answers problems (duplicate, too large...) with success:false */
+
+        showUploadStatus(
+            data.message ||
+            (data.success ? "PDF uploaded successfully." : "Upload failed."),
+            data.success ? "success" : "error"
+        );
+
+        if (data.success) {
+
+            loadDocumentsList();
+
+        }
+
+    } catch (error) {
+
+        console.error("PDF upload error:", error);
+
+        showUploadStatus("PDF upload failed.", "error");
+
+    } finally {
+
+        pdfInput.value = "";
+
+    }
+
+}
+
+
+/* =========================================================
+   21b. DOCUMENTS LIST  (this user's uploaded PDFs)
+   ========================================================= */
+
+function documentsEmptyState(title, text) {
+
+    return `
+
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                📄
+            </div>
+
+            <h3>
+                ${escapeHTML(title)}
+            </h3>
+
+            <p>
+                ${escapeHTML(text)}
+            </p>
+
+        </div>
+
+    `;
+
+}
+
+
+async function loadDocumentsList() {
+
+    const list = document.getElementById("documentsList");
+
+    if (!list || !currentUserId) {
+
+        return;
+
+    }
+
+    const userAtStart = currentUserId;
+
+    list.innerHTML = documentsEmptyState(
+        "Loading...",
+        "Getting your documents."
+    );
+
+    try {
+
+        const token = await getAccessToken();
+
+        if (!token) {
+
+            await handleSessionExpired();
+
+            return;
+
+        }
+
+        const response = await fetch(
+            BACKEND_URL + "/documents",
+            {
+                method: "GET",
+
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            }
+        );
+
+        if (response.status === 401) {
+
+            await handleSessionExpired();
+
+            return;
+
+        }
+
+        if (!response.ok) {
+
+            throw new Error("Server returned " + response.status);
+
+        }
+
+        const data = await response.json();
+
+        /* The user logged out or switched account while loading. */
+
+        if (currentUserId !== userAtStart) {
+
+            return;
+
+        }
+
+        const documents =
+            Array.isArray(data.documents)
+                ? data.documents
+                : [];
+
+        if (documents.length === 0) {
+
+            list.innerHTML = documentsEmptyState(
+                "No documents yet",
+                "Upload a PDF to add it to your knowledge base."
+            );
+
+            return;
+
+        }
+
+        list.innerHTML = "";
+
+        documents.forEach(function (doc) {
+
+            const item = document.createElement("div");
+
+            item.className = "document-item";
+
+            const chunkText =
+                doc.chunks === 1
+                    ? "1 section"
+                    : doc.chunks + " sections";
+
+            item.innerHTML = `
+
+                <div class="document-icon">
+                    📄
+                </div>
+
+                <div class="document-item-main">
+
+                    <div class="document-name">
+                        ${escapeHTML(doc.filename)}
+                    </div>
+
+                    <div class="document-meta">
+                        ${escapeHTML(chunkText)}
+                    </div>
+
+                </div>
+
+            `;
+
+            list.appendChild(item);
+
+        });
+
+    } catch (error) {
+
+        console.error("Load documents error:", error);
+
+        list.innerHTML = documentsEmptyState(
+            "Could not load documents",
+            "Please try again in a moment."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   22. IMAGE
+   ========================================================= */
+
+function selectImage() {
+
+    if (!imageInput) {
+
+        return;
+
+    }
+
+    toggleAttachmentMenu(false);
+
+    imageInput.click();
+
+}
+
+
+function handleImageSelected(file) {
+
+    if (!file) {
+
+        return;
+
+    }
+
+    showUploadStatus(
+        "Image selected. Vision integration will be added next.",
+        "loading"
+    );
+
+    imageInput.value = "";
+
+}
+
+
+/* =========================================================
+   23. UPLOAD STATUS
+   ========================================================= */
+
+function showUploadStatus(message, type = "") {
+
+    if (!uploadStatus) {
+
+        return;
+
+    }
+
+    uploadStatus.textContent = message;
+
+    uploadStatus.className = "upload-status";
+
+    if (type) {
+
+        uploadStatus.classList.add(type);
+
+    }
+
+    if (type === "success") {
+
+        setTimeout(function () {
+
+            uploadStatus.textContent = "";
+
+        }, 5000);
+
+    }
+
+}
+
+
+/* =========================================================
+   24. ATTACHMENT MENU
+   ========================================================= */
+
+function toggleAttachmentMenu(forceState) {
+
+    if (!attachmentMenu) {
+
+        return;
+
+    }
+
+    if (typeof forceState === "boolean") {
+
+        if (forceState) {
+
+            attachmentMenu.classList.add("show");
+
+        } else {
+
+            attachmentMenu.classList.remove("show");
+
+        }
+
+        return;
+
+    }
+
+    attachmentMenu.classList.toggle("show");
+
+}
+
+
+/* =========================================================
+   25. NEW CHAT  (resets backend memory using the login token)
+   ========================================================= */
+
+async function newChat() {
+
+    currentMessages = [];
+
+    currentConversationId = null;
+
+    resetChatboxToWelcome();
+
+    if (userInput) {
+
+        userInput.value = "";
+
+        autoResizeInput();
+
+        userInput.focus();
+
+    }
+
+    showSection("chat");
+
+    closeSidebar();
+
+    try {
+
+        const token = await getAccessToken();
+
+        if (token) {
+
+            await fetch(
+                BACKEND_URL + "/reset",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                }
+            );
+
+        }
+
+    } catch (error) {
+
+        console.warn("Backend reset failed:", error);
+
+    }
+
+}
+
+
+/* =========================================================
+   26. CREATE CLOUD CONVERSATION
+   ========================================================= */
+
+async function createConversation(firstMessage) {
+
+    if (!currentUserId) {
+
+        return false;
+
+    }
+
+    try {
+
+        const title =
+            firstMessage.substring(0, 45) ||
+            "New Conversation";
+
+        const nowIso = new Date().toISOString();
+
+        const { data, error } = await supabaseClient
+            .from("chat_conversations")
+            .insert({
+                user_id: currentUserId,
+                title: title,
+                messages: currentMessages,
+                updated_at: nowIso
+            })
+            .select("id")
+            .single();
+
+        if (error) {
+
+            console.error("Create conversation error:", error);
+
+            return false;
+
+        }
+
+        currentConversationId = data.id;
+
+        loadHistoryList();
+
+        return true;
+
+    } catch (error) {
+
+        console.error("Create conversation exception:", error);
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================================
+   27. UPDATE CLOUD CONVERSATION
+   ========================================================= */
+
+async function updateCloudConversation() {
+
+    if (!currentUserId || !currentConversationId) {
+
+        return false;
+
+    }
+
+    try {
+
+        const { error } = await supabaseClient
+            .from("chat_conversations")
+            .update({
+                messages: currentMessages,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", currentConversationId)
+            .eq("user_id", currentUserId);
+
+        if (error) {
+
+            console.error("Update conversation error:", error);
+
+            return false;
+
+        }
+
+        loadHistoryList();
+
+        return true;
+
+    } catch (error) {
+
+        console.error("Update conversation exception:", error);
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================================
+   28. GET HISTORY
+   ========================================================= */
+
+async function getHistories() {
+
+    if (!currentUserId) {
+
+        return [];
+
+    }
+
+    try {
+
+        const { data, error } = await supabaseClient
+            .from("chat_conversations")
+            .select("id, user_id, title, messages, created_at, updated_at")
+            .eq("user_id", currentUserId)
+            .order("updated_at", { ascending: false })
+            .limit(30);
+
+        if (error) {
+
+            console.error("Get history error:", error);
+
+            return [];
+
+        }
+
+        return data || [];
+
+    } catch (error) {
+
+        console.error("Get history exception:", error);
+
+        return [];
+
+    }
+
+}
+
+
+/* =========================================================
+   29. LOAD HISTORY
+   ========================================================= */
+
+async function loadHistoryList() {
+
+    const historyList = document.getElementById("historyList");
+
+    if (!historyList) {
+
+        return;
+
+    }
+
+    if (!currentUserId) {
+
+        return;
+
+    }
+
+    const histories = await getHistories();
+
+    if (!currentUserId) {
+
+        return;
+
+    }
+
+    if (histories.length === 0) {
+
+        historyList.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🕘
+                </div>
+
+                <h3>
+                    No chat history yet
+                </h3>
+
+                <p>
+                    Your conversations will appear here.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+    historyList.innerHTML = "";
+
+    histories.forEach(function (conversation) {
+
+        const item = document.createElement("div");
+
+        item.className = "history-item";
+
+        const date =
+            conversation.updated_at
+                ? new Date(conversation.updated_at).toLocaleString()
+                : "";
+
+        item.innerHTML = `
+
+            <div class="history-item-main">
+
+                <div class="history-title">
+                    ${escapeHTML(conversation.title || "New Conversation")}
+                </div>
+
+                <div class="history-date">
+                    ${escapeHTML(date)}
+                </div>
+
+            </div>
+
+            <button
+                class="history-open-btn"
+                type="button"
+            >
+                Open
+            </button>
+
+        `;
+
+        const openButton = item.querySelector(".history-open-btn");
+
+        if (openButton) {
+
+            openButton.addEventListener("click", function () {
+
+                restoreConversation(conversation.id);
+
+            });
+
+        }
+
+        historyList.appendChild(item);
+
+    });
+
+}
+
+
+/* =========================================================
+   30. RESTORE CONVERSATION
+   ========================================================= */
+
+async function restoreConversation(id) {
+
+    if (!currentUserId) {
+
+        return;
+
+    }
+
+    try {
+
+        const { data, error } = await supabaseClient
+            .from("chat_conversations")
+            .select("id, title, messages")
+            .eq("id", id)
+            .eq("user_id", currentUserId)
+            .single();
+
+        if (error) {
+
+            console.error("Restore conversation error:", error);
+
+            return;
+
+        }
+
+        if (!data) {
+
+            return;
+
+        }
+
+        currentConversationId = data.id;
+
+        currentMessages =
+            Array.isArray(data.messages)
+                ? [...data.messages]
+                : [];
+
+        if (chatbox) {
+
+            chatbox.innerHTML = "";
+
+        }
+
+        currentMessages.forEach(function (message) {
+
+            if (
+                message &&
+                message.role &&
+                typeof message.content !== "undefined"
+            ) {
+
+                addMessage(message.role, message.content);
+
+            }
+
+        });
+
+        showSection("chat");
+
+        if (userInput) {
+
+            userInput.focus();
+
+        }
+
+    } catch (error) {
+
+        console.error("Restore conversation exception:", error);
+
+    }
+
+}
+
+
+/* =========================================================
+   31. CLEAR HISTORY
+   ========================================================= */
+
+async function clearChatHistory() {
+
+    if (!currentUserId) {
+
+        return;
+
+    }
+
+    const confirmed = confirm(
+        "Are you sure you want to permanently delete your chat history?"
+    );
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+    try {
+
+        const { error } = await supabaseClient
+            .from("chat_conversations")
+            .delete()
+            .eq("user_id", currentUserId);
+
+        if (error) {
+
+            console.error("Delete history error:", error);
+
+            alert("Could not clear chat history.");
+
+            return;
+
+        }
+
+        currentMessages = [];
+
+        currentConversationId = null;
+
+        resetChatboxToWelcome();
+
+        await loadHistoryList();
+
+    } catch (error) {
+
+        console.error("Delete history exception:", error);
+
+        alert("Something went wrong while clearing history.");
+
+    }
+
+}
+
+
+/* =========================================================
+   32. SECTION NAVIGATION
+   ========================================================= */
+
+function showSection(section) {
+
+    const sections = {
+        chat: document.getElementById("chatSection"),
+        history: document.getElementById("historySection"),
+        documents: document.getElementById("documentsSection"),
+        vision: document.getElementById("visionSection"),
+        hardware: document.getElementById("hardwareSection"),
+        settings: document.getElementById("settingsSection")
+    };
+
+    Object.values(sections).forEach(function (element) {
+
+        if (element) {
+
+            element.classList.remove("active");
+
+        }
+
+    });
+
+    if (sections[section]) {
+
+        sections[section].classList.add("active");
+
+    }
+
+    /* Freshly load history whenever the History tab is opened. */
+
+    if (section === "history") {
+
+        loadHistoryList();
+
+    }
+
+    /* Freshly load the document list whenever the Documents tab is opened. */
+
+    if (section === "documents") {
+
+        loadDocumentsList();
+
+    }
+
+    const navItems = document.querySelectorAll(".nav-item");
+
+    navItems.forEach(function (item) {
+
+        item.classList.remove("active");
+
+    });
+
+    const sectionIndex = {
+        chat: 0,
+        history: 1,
+        documents: 2,
+        vision: 3,
+        hardware: 4,
+        settings: 5
+    };
+
+    const index = sectionIndex[section];
+
+    if (index !== undefined && navItems[index]) {
+
+        navItems[index].classList.add("active");
+
+    }
+
+    const titles = {
+        chat: ["AI Chat", "Your personal AI assistant"],
+        history: ["Chat History", "Your previous conversations"],
+        documents: ["Documents", "Your AI knowledge base"],
+        vision: ["Vision", "Image understanding"],
+        hardware: ["Hardware", "Connect your AI assistant to hardware"],
+        settings: ["Settings", "Manage your assistant"]
+    };
+
+    const titleData = titles[section];
+
+    if (titleData) {
+
+        const pageTitle = document.getElementById("pageTitle");
+        const pageSubtitle = document.getElementById("pageSubtitle");
+
+        if (pageTitle) {
+
+            pageTitle.textContent = titleData[0];
+
+        }
+
+        if (pageSubtitle) {
+
+            pageSubtitle.textContent = titleData[1];
+
+        }
+
+    }
+
+    closeSidebar();
+
+}
+
+
+/* =========================================================
+   33. SIDEBAR
+   ========================================================= */
+
+function toggleSidebar() {
+
+    document.body.classList.toggle("sidebar-open");
+
+}
+
+
+function openSidebar() {
+
+    document.body.classList.add("sidebar-open");
+
+}
+
+
+function closeSidebar() {
+
+    document.body.classList.remove("sidebar-open");
+
+}
+
+
+/* =========================================================
+   34. TEXTAREA
+   ========================================================= */
+
+function autoResizeInput() {
+
+    if (!userInput) {
+
+        return;
+
+    }
+
+    userInput.style.height = "auto";
+
+    userInput.style.height =
+        Math.min(userInput.scrollHeight, 180) + "px";
+
+}
+
+
+/* =========================================================
+   35. SCROLL
+   ========================================================= */
+
+function scrollToBottom() {
+
+    if (!chatbox) {
+
+        return;
+
+    }
+
+    chatbox.scrollTop = chatbox.scrollHeight;
+
+}
+
+
+/* =========================================================
+   36. ESCAPE HTML
+   ========================================================= */
+
+function escapeHTML(value) {
+
+    const div = document.createElement("div");
+
+    div.textContent = value == null ? "" : String(value);
+
+    return div.innerHTML;
+
+}
+
+
+/* =========================================================
+   37. CLOSE ATTACHMENT MENU
+   ========================================================= */
+
+document.addEventListener("click", function (event) {
+
+    if (!attachmentMenu) {
+
+        return;
+
+    }
+
+    const clickedInside = attachmentMenu.contains(event.target);
+
+    const clickedButton = event.target.closest(".attachment-btn");
+
+    if (!clickedInside && !clickedButton) {
+
+        attachmentMenu.classList.remove("show");
+
+    }
+
+});
+
+
+/* =========================================================
+   38. ESCAPE KEY
+   ========================================================= */
+
+document.addEventListener("keydown", function (event) {
+
+    if (event.key === "Escape") {
+
+        closeSidebar();
+
+    }
+
+});
