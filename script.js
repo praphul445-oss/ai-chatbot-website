@@ -1,2247 +1,2020 @@
 /* =========================================================
    MY AI ASSISTANT
-   Authentication + Chatbot + PDF/RAG + Local History
+   COMPLETE RESPONSIVE STYLESHEET
+   Desktop + Mobile
    ========================================================= */
 
 
 /* =========================================================
-   1. SUPABASE CONFIGURATION
+   1. GLOBAL
    ========================================================= */
 
-const SUPABASE_URL =
-    "https://jjuuilevlddifxoitffp.supabase.co";
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_eQFWdaObL0JtrBmkwqJ_sw_lzbtjt-I";
+html {
+    width: 100%;
+    height: 100%;
+}
 
-const supabaseClient =
-    window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_PUBLISHABLE_KEY
-    );
+body {
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+
+    margin: 0;
+
+    background: #0b0b0f;
+    color: #f5f5f5;
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+    overflow: hidden;
+}
 
 
 /* =========================================================
-   2. BACKEND
+   2. HIDDEN ELEMENTS
    ========================================================= */
 
-const BACKEND_URL =
-    "https://ai-chatbot-website-zlqu.onrender.com";
+[hidden] {
+    display: none !important;
+}
 
 
 /* =========================================================
-   3. DOM ELEMENTS
+   3. AUTHENTICATION SCREEN
    ========================================================= */
 
-let userInput;
-let chatbox;
-let sendButton;
-let pdfInput;
-let imageInput;
-let uploadStatus;
-let attachmentMenu;
+.auth-screen {
+    width: 100%;
+    height: 100dvh;
 
-let welcomeScreen;
-let authScreen;
-let appShell;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-let authMessage;
+    padding: 20px;
 
-let loginButton;
-let signupButton;
+    background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.04), transparent 45%),
+        #0b0b0f;
 
-let userEmail;
-let userAvatar;
+    overflow-y: auto;
+}
 
-let sidebarOverlay;
+.auth-card {
+    width: 100%;
+    max-width: 430px;
+
+    padding: 32px;
+
+    background: #141419;
+
+    border: 1px solid #2a2a31;
+    border-radius: 18px;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.auth-logo {
+    width: 64px;
+    height: 64px;
+
+    margin: 0 auto 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #202027;
+
+    border: 1px solid #34343d;
+    border-radius: 16px;
+
+    font-size: 32px;
+}
+
+.auth-title {
+    text-align: center;
+
+    font-size: 28px;
+    font-weight: 700;
+
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    text-align: center;
+
+    color: #9999a3;
+
+    font-size: 14px;
+
+    margin-bottom: 26px;
+}
 
 
 /* =========================================================
-   4. CHAT HISTORY
+   4. AUTH TABS
    ========================================================= */
 
-const HISTORY_KEY =
-    "my_ai_chat_history";
+.auth-tabs {
+    display: flex;
 
-let currentMessages = [];
+    gap: 4px;
+
+    margin-bottom: 22px;
+
+    padding: 4px;
+
+    background: #0e0e12;
+
+    border: 1px solid #27272e;
+    border-radius: 10px;
+}
+
+.auth-tab {
+    flex: 1;
+
+    border: none;
+    border-radius: 7px;
+
+    padding: 10px;
+
+    background: transparent;
+
+    color: #92929c;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.auth-tab:hover {
+    color: #ffffff;
+}
+
+.auth-tab.active {
+    background: #292930;
+    color: #ffffff;
+}
 
 
 /* =========================================================
-   5. INITIALIZATION
+   5. AUTH FORMS
    ========================================================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    async function () {
+.auth-form {
+    display: none;
 
-        userInput =
-            document.getElementById("userInput");
+    flex-direction: column;
 
-        chatbox =
-            document.getElementById("chatbox");
+    gap: 14px;
+}
 
-        sendButton =
-            document.getElementById("sendButton");
+.auth-form.active {
+    display: flex;
+}
 
-        pdfInput =
-            document.getElementById("pdfInput");
+.auth-label {
+    color: #c8c8d0;
 
-        imageInput =
-            document.getElementById("imageInput");
+    font-size: 13px;
+    font-weight: 600;
+}
 
-        uploadStatus =
-            document.getElementById("uploadStatus");
+.auth-input {
+    width: 100%;
 
-        attachmentMenu =
-            document.getElementById("attachmentMenu");
+    padding: 13px 14px;
 
-        welcomeScreen =
-            document.getElementById("welcomeScreen");
+    background: #0d0d11;
 
-        authScreen =
-            document.getElementById("authScreen");
+    color: #ffffff;
 
-        appShell =
-            document.getElementById("appShell");
+    border: 1px solid #303039;
+    border-radius: 10px;
 
-        authMessage =
-            document.getElementById("authMessage");
+    outline: none;
 
-        loginButton =
-            document.getElementById("loginButton");
+    font-size: 15px;
 
-        signupButton =
-            document.getElementById("signupButton");
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
 
-        userEmail =
-            document.getElementById("userEmail");
+.auth-input::placeholder {
+    color: #65656e;
+}
 
-        userAvatar =
-            document.getElementById("userAvatar");
+.auth-input:focus {
+    border-color: #666671;
 
-        sidebarOverlay =
-            document.getElementById("sidebarOverlay");
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
 
+.auth-button {
+    width: 100%;
 
-        /* PDF input */
+    margin-top: 6px;
 
-        if (pdfInput) {
+    padding: 13px 16px;
 
-            pdfInput.addEventListener(
-                "change",
-                function () {
+    border: none;
+    border-radius: 10px;
 
-                    if (
-                        pdfInput.files &&
-                        pdfInput.files.length > 0
-                    ) {
+    background: #ffffff;
 
-                        uploadPDF(
-                            pdfInput.files[0]
-                        );
+    color: #111111;
 
-                    }
+    font-size: 15px;
+    font-weight: 700;
 
-                }
-            );
+    cursor: pointer;
 
-        }
+    transition:
+        opacity 0.2s ease,
+        transform 0.1s ease;
+}
 
+.auth-button:hover {
+    opacity: 0.9;
+}
 
-        /* Image input */
+.auth-button:active {
+    transform: scale(0.99);
+}
 
-        if (imageInput) {
+.auth-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-            imageInput.addEventListener(
-                "change",
-                function () {
+.auth-message {
+    min-height: 20px;
 
-                    if (
-                        imageInput.files &&
-                        imageInput.files.length > 0
-                    ) {
+    margin-top: 4px;
 
-                        handleImageSelected(
-                            imageInput.files[0]
-                        );
+    text-align: center;
 
-                    }
+    font-size: 13px;
+    line-height: 1.5;
+}
 
-                }
-            );
+.auth-message.error {
+    color: #ff7070;
+}
 
-        }
+.auth-message.success {
+    color: #7ee2a8;
+}
 
+.auth-footer {
+    margin-top: 22px;
 
-        /* Textarea */
+    text-align: center;
 
-        if (userInput) {
+    color: #707079;
 
-            userInput.addEventListener(
-                "input",
-                autoResizeInput
-            );
+    font-size: 12px;
+}
 
 
-            userInput.addEventListener(
-                "keydown",
-                function (event) {
+/* =========================================================
+   6. MAIN APPLICATION
+   ========================================================= */
 
-                    if (
-                        event.key === "Enter" &&
-                        !event.shiftKey
-                    ) {
+#appShell {
+    position: relative;
 
-                        event.preventDefault();
+    width: 100%;
+    height: 100dvh;
 
-                        sendMessage();
+    display: flex;
 
-                    }
+    overflow: hidden;
 
-                }
-            );
+    background: #0b0b0f;
+}
 
-        }
 
+/* =========================================================
+   7. SIDEBAR
+   ========================================================= */
 
-        /* Supabase authentication listener */
+.sidebar {
+    width: 260px;
+    min-width: 260px;
 
-        supabaseClient.auth.onAuthStateChange(
-            function (event, session) {
+    height: 100dvh;
 
-                console.log(
-                    "Supabase Auth Event:",
-                    event
-                );
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 
-                handleAuthState(
-                    session
-                );
+    background: #111116;
 
-            }
-        );
+    border-right: 1px solid #29292f;
 
+    z-index: 1000;
+}
 
-        /* Check existing session */
 
-        try {
+/* =========================================================
+   8. BRAND
+   ========================================================= */
 
-            const {
-                data,
-                error
-            } = await supabaseClient.auth.getSession();
+.brand {
+    display: flex;
+    align-items: center;
 
+    gap: 12px;
 
-            if (error) {
+    padding: 20px 18px;
 
-                console.error(
-                    "Session error:",
-                    error
-                );
+    border-bottom: 1px solid #25252c;
+}
 
-                showLoginScreen();
+.brand-icon {
+    width: 38px;
+    height: 38px;
 
-                return;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-            }
+    background: #202027;
 
+    border: 1px solid #35353e;
+    border-radius: 10px;
 
-            handleAuthState(
-                data.session
-            );
+    font-size: 21px;
 
-        } catch (error) {
+    flex-shrink: 0;
+}
 
-            console.error(
-                "Authentication initialization error:",
-                error
-            );
+.brand-text {
+    color: #ffffff;
 
-            showLoginScreen();
+    font-size: 16px;
+    font-weight: 700;
 
-        }
+    white-space: nowrap;
+}
 
+
+/* =========================================================
+   9. NEW CHAT BUTTON
+   ========================================================= */
+
+.new-chat-btn {
+    margin: 16px 14px 12px;
+
+    padding: 12px 14px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    border: 1px solid #35353e;
+    border-radius: 10px;
+
+    background: #1c1c22;
+
+    color: #ffffff;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.new-chat-btn:hover {
+    background: #25252c;
+    border-color: #45454e;
+}
+
+
+/* =========================================================
+   10. NAVIGATION
+   ========================================================= */
+
+.sidebar-nav {
+    flex: 1;
+
+    padding: 4px 10px;
+
+    overflow-y: auto;
+}
+
+.nav-item {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+
+    gap: 12px;
+
+    margin-bottom: 4px;
+
+    padding: 11px 12px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: transparent;
+
+    color: #a7a7b0;
+
+    text-align: left;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+.nav-item:hover {
+    background: #1c1c22;
+    color: #ffffff;
+}
+
+.nav-item.active {
+    background: rgba(0, 229, 255, 0.1);
+    color: #00e5ff;
+
+    border-left: 3px solid #00e5ff;
+}
+
+.nav-icon {
+    width: 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 17px;
+
+    flex-shrink: 0;
+}
+
+
+/* =========================================================
+   11. USER ACCOUNT
+   ========================================================= */
+
+.user-account {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    margin: 10px 12px;
+
+    padding: 10px;
+
+    background: #18181e;
+
+    border: 1px solid #292930;
+    border-radius: 10px;
+}
+
+.user-avatar {
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #303039;
+
+    color: #ffffff;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    flex-shrink: 0;
+}
+
+.user-details {
+    min-width: 0;
+
+    flex: 1;
+}
+
+.user-label {
+    color: #777780;
+
+    font-size: 10px;
+
+    margin-bottom: 2px;
+}
+
+.user-email {
+    color: #ddddE3;
+
+    font-size: 12px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout-button {
+    border: none;
+
+    background: transparent;
+
+    color: #85858e;
+
+    font-size: 12px;
+
+    cursor: pointer;
+}
+
+.logout-button:hover {
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   12. SIDEBAR FOOTER
+   ========================================================= */
+
+.sidebar-footer {
+    padding: 0 14px 16px;
+}
+
+.online-status {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    color: #85858e;
+
+    font-size: 11px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #50d890;
+
+    box-shadow: 0 0 8px rgba(80, 216, 144, 0.5);
+}
+
+
+/* =========================================================
+   13. MAIN CONTENT
+   ========================================================= */
+
+.main-content {
+    flex: 1;
+
+    min-width: 0;
+
+    height: 100dvh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background: #0b0b0f;
+}
+
+
+/* =========================================================
+   14. TOPBAR
+   ========================================================= */
+
+.topbar {
+    min-height: 74px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 14px 24px;
+
+    background: #0e0e13;
+
+    border-bottom: 1px solid #29292f;
+
+    flex-shrink: 0;
+}
+
+.page-heading {
+    min-width: 0;
+}
+
+#pageTitle {
+    color: #f4f4f6;
+
+    font-size: 20px;
+    font-weight: 700;
+
+    margin-bottom: 4px;
+}
+
+#pageSubtitle {
+    color: #85858e;
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   15. MOBILE MENU BUTTON
+   ========================================================= */
+
+.mobile-menu-button {
+    display: none;
+
+    width: 42px;
+    height: 42px;
+
+    margin-right: 12px;
+
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #303039;
+    border-radius: 10px;
+
+    background: #18181e;
+
+    color: #ffffff;
+
+    font-size: 22px;
+
+    cursor: pointer;
+
+    flex-shrink: 0;
+}
+
+.mobile-menu-button:hover {
+    background: #25252c;
+}
+
+
+/* =========================================================
+   15b. MOBILE SIDEBAR OVERLAY
+   (a real element instead of a ::after pseudo-element,
+   so it can carry its own click-to-close handler)
+   ========================================================= */
+
+.sidebar-overlay {
+    display: none;
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.58);
+
+    z-index: 999;
+}
+
+
+/* =========================================================
+   16. CONTENT SECTIONS
+   ========================================================= */
+
+.content-section {
+    display: none;
+
+    flex: 1;
+
+    min-height: 0;
+
+    overflow: hidden;
+}
+
+.content-section.active {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* =========================================================
+   17. CHAT SECTION
+   ========================================================= */
+
+#chatSection {
+    position: relative;
+
+    min-height: 0;
+}
+
+
+/* =========================================================
+   18. CHATBOX
+   ========================================================= */
+
+#chatbox {
+    flex: 1;
+
+    min-height: 0;
+
+    width: 100%;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 28px 30px 150px;
+
+    scroll-behavior: smooth;
+}
+
+
+/* Scrollbar */
+
+#chatbox::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar {
+    width: 7px;
+}
+
+#chatbox::-webkit-scrollbar-track,
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chatbox::-webkit-scrollbar-thumb,
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: #303039;
+
+    border-radius: 10px;
+}
+
+#chatbox::-webkit-scrollbar-thumb:hover,
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: #45454e;
+}
+
+
+/* =========================================================
+   19. WELCOME MESSAGE
+   ========================================================= */
+
+.welcome-message {
+    width: 100%;
+
+    min-height: 60vh;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    padding: 40px 20px;
+}
+
+.welcome-icon {
+    width: 96px;
+    height: 96px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 28px;
+
+    background: #1d1d23;
+
+    border: 1px solid #34343c;
+    border-radius: 22px;
+
+    font-size: 48px;
+
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+}
+
+.welcome-message h2 {
+    color: #f5f5f6;
+
+    font-size: 38px;
+    font-weight: 700;
+
+    margin-bottom: 12px;
+}
+
+.welcome-message p {
+    max-width: 650px;
+
+    color: #92929c;
+
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   20. CHAT MESSAGES
+   ========================================================= */
+
+.message {
+    width: 100%;
+
+    display: flex;
+
+    margin-bottom: 18px;
+
+    animation: messageAppear 0.18s ease;
+}
+
+@keyframes messageAppear {
+
+    from {
+        opacity: 0;
+        transform: translateY(5px);
     }
-);
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+
+/* USER MESSAGE */
+
+.user-message {
+    justify-content: flex-end;
+
+    padding-left: 15%;
+}
+
+.user-message .message-content {
+    max-width: 75%;
+
+    padding: 11px 15px;
+
+    background: #2b2b33;
+
+    color: #ffffff;
+
+    border-radius: 16px 16px 4px 16px;
+
+    line-height: 1.5;
+
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+
+/* AI MESSAGE */
+
+.ai-message {
+    justify-content: flex-start;
+
+    padding-right: 15%;
+}
+
+.ai-message .message-content {
+    max-width: 75%;
+
+    padding: 11px 15px;
+
+    background: transparent;
+
+    color: #eeeeF1;
+
+    border-radius: 16px;
+
+    line-height: 1.6;
+
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
 
 
 /* =========================================================
-   6. AUTHENTICATION STATE
+   21. MESSAGE CONTENT
    ========================================================= */
 
-function handleAuthState(session) {
+.message-content {
+    font-size: 15px;
 
-    if (
-        session &&
-        session.user
-    ) {
+    white-space: pre-wrap;
+}
 
-        showApp(
-            session.user
-        );
 
-    } else {
+/* =========================================================
+   21b. TYPING INDICATOR (animated triple dots)
+   ========================================================= */
 
-        showLoginScreen();
+.typing-dots {
+    display: inline-flex;
 
+    align-items: center;
+
+    gap: 4px;
+
+    padding: 4px 0;
+}
+
+.typing-dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #00e5ff;
+
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.7);
+
+    opacity: 0.4;
+
+    animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+
+    background: #39ff8c;
+    box-shadow: 0 0 6px rgba(57, 255, 140, 0.7);
+}
+
+@keyframes typing-bounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    30% {
+        transform: translateY(-5px);
+        opacity: 1;
     }
 
 }
 
 
 /* =========================================================
-   7. SHOW LOGIN SCREEN
+   22. COMPOSER
    ========================================================= */
 
-function showLoginScreen() {
+.composer-container {
+    position: absolute;
 
-    if (welcomeScreen) {
+    left: 50%;
+    bottom: 18px;
 
-        welcomeScreen.hidden = false;
+    transform: translateX(-50%);
 
-    }
+    width: min(900px, calc(100% - 48px));
 
-
-    if (authScreen) {
-
-        authScreen.hidden = true;
-
-    }
-
-
-    if (appShell) {
-
-        appShell.hidden = true;
-
-    }
-
-
-    closeSidebar();
-
-
-    clearAuthMessage();
-
+    z-index: 100;
 }
 
 
 /* =========================================================
-   7b. OPEN / CLOSE THE ACTUAL LOGIN FORM
-   (only reached after the visitor clicks a button on the
-   public welcome screen — never shown on first load)
+   23. COMPOSER BOX
    ========================================================= */
 
-function openAuthScreen(form) {
+.composer-box {
+    position: relative;
 
-    if (welcomeScreen) {
+    display: flex;
+    align-items: flex-end;
 
-        welcomeScreen.hidden = true;
+    gap: 8px;
 
-    }
+    padding: 8px;
 
+    background: #19191f;
 
-    if (authScreen) {
+    border: 1px solid #34343d;
 
-        authScreen.hidden = false;
+    border-radius: 17px;
 
-    }
-
-
-    showAuthForm(
-        form || "login"
-    );
-
-}
-
-
-function backToWelcome() {
-
-    if (authScreen) {
-
-        authScreen.hidden = true;
-
-    }
-
-
-    if (welcomeScreen) {
-
-        welcomeScreen.hidden = false;
-
-    }
-
-
-    clearAuthMessage();
-
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
 }
 
 
 /* =========================================================
-   8. SHOW MAIN APPLICATION
+   24. ATTACHMENT BUTTON
    ========================================================= */
 
-function showApp(user) {
+.attachment-btn {
+    width: 40px;
+    height: 40px;
 
-    if (welcomeScreen) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-        welcomeScreen.hidden = true;
+    border: none;
+    border-radius: 10px;
 
-    }
+    background: transparent;
 
+    color: #a3a3ad;
 
-    if (authScreen) {
+    font-size: 22px;
 
-        authScreen.hidden = true;
+    cursor: pointer;
 
-    }
+    flex-shrink: 0;
+}
 
+.attachment-btn:hover {
+    background: #292930;
 
-    if (appShell) {
-
-        appShell.hidden = false;
-
-    }
-
-
-    updateUserDisplay(
-        user
-    );
-
-
-    loadHistoryList();
-
-    autoResizeInput();
-
+    color: #ffffff;
 }
 
 
 /* =========================================================
-   9. USER DISPLAY
+   25. TEXT INPUT
    ========================================================= */
 
-function updateUserDisplay(user) {
+#userInput {
+    flex: 1;
 
-    if (!user) {
-        return;
-    }
+    min-width: 0;
 
+    min-height: 40px;
+    max-height: 180px;
 
-    const email =
-        user.email || "User";
+    padding: 10px 8px;
 
+    resize: none;
 
-    if (userEmail) {
+    border: none;
+    outline: none;
 
-        userEmail.textContent =
-            email;
+    background: transparent;
 
-    }
+    color: #ffffff;
 
+    font-family: inherit;
 
-    if (userAvatar) {
+    font-size: 15px;
 
-        const firstLetter =
-            email
-                .charAt(0)
-                .toUpperCase();
+    line-height: 1.45;
 
-        userAvatar.textContent =
-            firstLetter;
+    overflow-y: auto;
+}
 
-    }
-
+#userInput::placeholder {
+    color: #777780;
 }
 
 
 /* =========================================================
-   10. AUTH FORM SWITCHING
+   26. SEND BUTTON
    ========================================================= */
 
-function showAuthForm(form) {
+.send-btn {
+    width: 40px;
+    height: 40px;
 
-    const loginForm =
-        document.getElementById(
-            "loginForm"
-        );
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    const signupForm =
-        document.getElementById(
-            "signupForm"
-        );
+    border: none;
+    border-radius: 10px;
 
-    const loginTab =
-        document.getElementById(
-            "loginTab"
-        );
+    background: linear-gradient(135deg, #00e5ff, #39ff8c);
 
-    const signupTab =
-        document.getElementById(
-            "signupTab"
-        );
+    color: #06110d;
 
+    font-size: 18px;
+    font-weight: 700;
 
-    clearAuthMessage();
+    cursor: pointer;
 
+    flex-shrink: 0;
 
-    if (form === "login") {
+    transition:
+        opacity 0.2s ease,
+        transform 0.1s ease,
+        box-shadow 0.2s ease;
+}
 
-        loginForm.classList.add(
-            "active"
-        );
+.send-btn:hover {
+    opacity: 0.92;
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.4);
+}
 
-        signupForm.classList.remove(
-            "active"
-        );
+.send-btn:active {
+    transform: scale(0.95);
+}
 
-        loginTab.classList.add(
-            "active"
-        );
+.send-btn:disabled {
+    opacity: 0.45;
 
-        signupTab.classList.remove(
-            "active"
-        );
-
-    } else {
-
-        signupForm.classList.add(
-            "active"
-        );
-
-        loginForm.classList.remove(
-            "active"
-        );
-
-        signupTab.classList.add(
-            "active"
-        );
-
-        loginTab.classList.remove(
-            "active"
-        );
-
-    }
-
+    cursor: not-allowed;
 }
 
 
 /* =========================================================
-   11. AUTH MESSAGE
+   27. ATTACHMENT MENU
    ========================================================= */
 
-function showAuthMessage(
-    message,
-    type = ""
-) {
+.attachment-menu {
+    position: absolute;
 
-    if (!authMessage) {
-        return;
-    }
+    left: 8px;
+    bottom: calc(100% + 8px);
 
+    width: 190px;
 
-    authMessage.textContent =
-        message;
+    display: none;
 
+    padding: 7px;
 
-    authMessage.className =
-        "auth-message";
+    background: #19191f;
 
+    border: 1px solid #34343d;
+    border-radius: 12px;
 
-    if (type) {
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.45);
 
-        authMessage.classList.add(
-            type
-        );
-
-    }
-
+    z-index: 200;
 }
 
-
-function clearAuthMessage() {
-
-    if (!authMessage) {
-        return;
-    }
-
-
-    authMessage.textContent = "";
-
-    authMessage.className =
-        "auth-message";
-
+.attachment-menu.show {
+    display: block;
 }
 
+.attachment-option {
+    width: 100%;
 
-/* =========================================================
-   12. LOGIN
-   ========================================================= */
+    display: flex;
+    align-items: center;
 
-async function loginUser(event) {
+    gap: 10px;
 
-    event.preventDefault();
+    padding: 10px 11px;
 
+    border: none;
+    border-radius: 8px;
 
-    const email =
-        document
-            .getElementById("loginEmail")
-            .value
-            .trim();
+    background: transparent;
 
+    color: #ddddE3;
 
-    const password =
-        document
-            .getElementById("loginPassword")
-            .value;
+    text-align: left;
 
+    font-size: 13px;
 
-    if (
-        !email ||
-        !password
-    ) {
+    cursor: pointer;
+}
 
-        showAuthMessage(
-            "Please enter your email and password.",
-            "error"
-        );
+.attachment-option:hover {
+    background: #292930;
 
-        return;
-
-    }
-
-
-    loginButton.disabled =
-        true;
-
-    loginButton.textContent =
-        "Logging in...";
-
-
-    clearAuthMessage();
-
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient.auth.signInWithPassword({
-
-            email: email,
-
-            password: password
-
-        });
-
-
-        if (error) {
-
-            console.error(
-                "Login error:",
-                error
-            );
-
-            showAuthMessage(
-                error.message ||
-                "Login failed. Please check your details.",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            data &&
-            data.user
-        ) {
-
-            showAuthMessage(
-                "Login successful.",
-                "success"
-            );
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Login exception:",
-            error
-        );
-
-        showAuthMessage(
-            "Something went wrong while logging in.",
-            "error"
-        );
-
-    } finally {
-
-        loginButton.disabled =
-            false;
-
-        loginButton.textContent =
-            "Login";
-
-    }
-
+    color: #ffffff;
 }
 
 
 /* =========================================================
-   13. SIGN UP
+   28. UPLOAD STATUS
    ========================================================= */
 
-async function signupUser(event) {
+.upload-status {
+    min-height: 0;
 
-    event.preventDefault();
+    margin-top: 7px;
 
+    text-align: center;
 
-    const email =
-        document
-            .getElementById("signupEmail")
-            .value
-            .trim();
+    font-size: 12px;
+}
 
+.upload-status.loading {
+    color: #aaaab4;
+}
 
-    const password =
-        document
-            .getElementById("signupPassword")
-            .value;
+.upload-status.success {
+    color: #75dfa1;
+}
 
-
-    const confirmPassword =
-        document
-            .getElementById(
-                "signupConfirmPassword"
-            )
-            .value;
-
-
-    if (!email) {
-
-        showAuthMessage(
-            "Please enter your email.",
-            "error"
-        );
-
-        return;
-
-    }
-
-
-    if (
-        password.length < 6
-    ) {
-
-        showAuthMessage(
-            "Password must be at least 6 characters.",
-            "error"
-        );
-
-        return;
-
-    }
-
-
-    if (
-        password !==
-        confirmPassword
-    ) {
-
-        showAuthMessage(
-            "Passwords do not match.",
-            "error"
-        );
-
-        return;
-
-    }
-
-
-    signupButton.disabled =
-        true;
-
-    signupButton.textContent =
-        "Creating account...";
-
-
-    clearAuthMessage();
-
-
-    try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient.auth.signUp({
-
-            email: email,
-
-            password: password
-
-        });
-
-
-        if (error) {
-
-            console.error(
-                "Signup error:",
-                error
-            );
-
-            showAuthMessage(
-                error.message ||
-                "Account creation failed.",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        /*
-           If email confirmation is enabled,
-           Supabase returns a user without
-           an active session.
-        */
-
-        if (
-            data &&
-            data.user &&
-            !data.session
-        ) {
-
-            showAuthMessage(
-                "Account created. Please check your email and verify your account before logging in.",
-                "success"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            data &&
-            data.session
-        ) {
-
-            showAuthMessage(
-                "Account created successfully.",
-                "success"
-            );
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Signup exception:",
-            error
-        );
-
-        showAuthMessage(
-            "Something went wrong while creating your account.",
-            "error"
-        );
-
-    } finally {
-
-        signupButton.disabled =
-            false;
-
-        signupButton.textContent =
-            "Create Account";
-
-    }
-
+.upload-status.error {
+    color: #ff7474;
 }
 
 
 /* =========================================================
-   14. LOGOUT
+   29. HISTORY SECTION
    ========================================================= */
 
-async function logoutUser() {
+#historySection {
+    padding: 24px;
 
-    try {
+    overflow-y: auto;
+}
 
-        const {
-            error
-        } = await supabaseClient.auth.signOut();
+.history-list {
+    display: flex;
+    flex-direction: column;
 
-
-        if (error) {
-
-            console.error(
-                "Logout error:",
-                error
-            );
-
-            alert(
-                "Logout failed. Please try again."
-            );
-
-            return;
-
-        }
-
-
-        currentMessages = [];
-
-        showLoginScreen();
-
-
-        const loginPassword =
-            document.getElementById(
-                "loginPassword"
-            );
-
-
-        if (loginPassword) {
-
-            loginPassword.value = "";
-
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "Logout exception:",
-            error
-        );
-
-        alert(
-            "Something went wrong while logging out."
-        );
-
-    }
-
+    gap: 8px;
 }
 
 
 /* =========================================================
-   15. SEND CHAT MESSAGE
+   30. HISTORY ITEM
    ========================================================= */
 
-async function sendMessage() {
+.history-item {
+    display: flex;
+    align-items: center;
 
-    if (!userInput) {
-        return;
-    }
+    gap: 15px;
 
+    padding: 15px;
 
-    const message =
-        userInput.value.trim();
+    background: #15151a;
 
+    border: 1px solid #292930;
+    border-radius: 12px;
 
-    if (!message) {
-        return;
-    }
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
 
+.history-item:hover {
+    background: #1b1b21;
 
-    toggleAttachmentMenu(
-        false
-    );
+    border-color: #3a3a43;
+}
 
+.history-item-main {
+    min-width: 0;
 
-    if (sendButton) {
+    flex: 1;
+}
 
-        sendButton.disabled =
-            true;
+.history-title {
+    color: #eeeeF2;
 
-    }
+    font-size: 14px;
+    font-weight: 600;
 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
-    userInput.disabled =
-        true;
+.history-date {
+    margin-top: 5px;
 
+    color: #777780;
 
-    addMessage(
-        "user",
-        message
-    );
+    font-size: 11px;
+}
 
+.history-open-btn {
+    padding: 8px 12px;
 
-    currentMessages.push({
+    border: 1px solid #35353e;
+    border-radius: 8px;
 
-        role: "user",
+    background: #202027;
 
-        content: message
+    color: #ddddE3;
 
-    });
+    font-size: 12px;
 
+    cursor: pointer;
 
-    userInput.value = "";
+    flex-shrink: 0;
+}
 
-    autoResizeInput();
-
-
-    const thinkingMessage =
-        addMessage(
-            "assistant",
-            "Thinking..."
-        );
-
-
-    try {
-
-        const response =
-            await fetch(
-                BACKEND_URL + "/chat",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        message: message
-
-                    })
-
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Server returned " +
-                response.status
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        const reply =
-            data.response ||
-            data.message ||
-            data.reply ||
-            "I couldn't generate a response.";
-
-
-        updateMessage(
-            thinkingMessage,
-            reply
-        );
-
-
-        currentMessages.push({
-
-            role: "assistant",
-
-            content: reply
-
-        });
-
-
-        saveCurrentConversation();
-
-
-    } catch (error) {
-
-        console.error(
-            "Chat error:",
-            error
-        );
-
-
-        updateMessage(
-            thinkingMessage,
-            "Sorry, I couldn't connect to the AI server."
-        );
-
-    } finally {
-
-        if (sendButton) {
-
-            sendButton.disabled =
-                false;
-
-        }
-
-
-        userInput.disabled =
-            false;
-
-
-        userInput.focus();
-
-    }
-
+.history-open-btn:hover {
+    background: #2b2b33;
 }
 
 
 /* =========================================================
-   16. ADD MESSAGE
+   31. EMPTY STATE
    ========================================================= */
 
-function addMessage(
-    role,
-    content
-) {
+.empty-state {
+    padding: 60px 20px;
 
-    const messageDiv =
-        document.createElement(
-            "div"
-        );
+    text-align: center;
+}
 
-    /* Correct alignment classes */
-    if (role === "user") {
+.empty-icon {
+    margin-bottom: 14px;
 
-        messageDiv.className =
-            "message user-message";
+    font-size: 36px;
+}
 
-    } else {
+.empty-state h3 {
+    margin-bottom: 7px;
 
-        messageDiv.className =
-            "message ai-message";
+    font-size: 18px;
+}
 
-    }
+.empty-state p {
+    color: #777780;
 
-    const contentDiv =
-        document.createElement(
-            "div"
-        );
-
-    contentDiv.className =
-        "message-content";
-
-    contentDiv.textContent =
-        content;
-
-    messageDiv.appendChild(
-        contentDiv
-    );
-
-    chatbox.appendChild(
-        messageDiv
-    );
-
-    scrollToBottom();
-
-    return messageDiv;
-
+    font-size: 13px;
 }
 
 
 /* =========================================================
-   17. UPDATE MESSAGE
+   32. DANGER BUTTON
    ========================================================= */
 
-function updateMessage(
-    messageElement,
-    content
-) {
+.danger-btn {
+    padding: 10px 14px;
 
-    if (!messageElement) {
-        return;
-    }
+    border: 1px solid #572d2d;
+    border-radius: 9px;
 
+    background: #261719;
 
-    const contentDiv =
-        messageElement.querySelector(
-            ".message-content"
-        );
+    color: #ff8585;
 
+    font-size: 13px;
 
-    if (contentDiv) {
+    cursor: pointer;
 
-        contentDiv.textContent =
-            content;
+    flex-shrink: 0;
+}
 
-    } else {
-
-        messageElement.textContent =
-            content;
-
-    }
-
-
-    scrollToBottom();
-
+.danger-btn:hover {
+    background: #351d1f;
 }
 
 
 /* =========================================================
-   18. PDF SELECTION
+   33. DOCUMENTS / VISION / HARDWARE / SETTINGS
    ========================================================= */
 
-function selectPDF() {
+#documentsSection,
+#visionSection,
+#hardwareSection,
+#settingsSection {
+    padding: 28px;
 
-    if (!pdfInput) {
-        return;
-    }
+    overflow-y: auto;
+}
 
+.documents-container {
+    width: 100%;
+    max-width: 1000px;
 
-    toggleAttachmentMenu(
-        false
-    );
-
-
-    pdfInput.click();
-
+    margin: 0 auto;
 }
 
 
 /* =========================================================
-   19. PDF UPLOAD
+   33a. DOCUMENTS LIST  (this user's uploaded PDFs)
    ========================================================= */
 
-async function uploadPDF(
-    file
-) {
+.documents-list {
+    display: flex;
+    flex-direction: column;
 
-    if (!file) {
-        return;
+    gap: 8px;
+}
+
+.document-item {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+
+    padding: 14px 15px;
+
+    background: #15151a;
+
+    border: 1px solid #292930;
+    border-radius: 12px;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.document-item:hover {
+    background: #1b1b21;
+
+    border-color: #3a3a43;
+}
+
+.document-icon {
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #202027;
+
+    border: 1px solid #35353e;
+    border-radius: 10px;
+
+    font-size: 19px;
+
+    flex-shrink: 0;
+}
+
+.document-item-main {
+    min-width: 0;
+
+    flex: 1;
+}
+
+.document-name {
+    color: #eeeef2;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-meta {
+    margin-top: 4px;
+
+    color: #777780;
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   33b. SECTION HEADER
+   (title + optional action button, used by every
+   non-chat section: History, Documents, Vision,
+   Hardware, Settings)
+   ========================================================= */
+
+.section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    flex-wrap: wrap;
+
+    max-width: 1000px;
+    margin: 0 auto 22px;
+}
+
+.section-header h2 {
+    margin-bottom: 6px;
+
+    font-size: 22px;
+    font-weight: 700;
+
+    color: #f4f4f6;
+}
+
+.section-header p {
+    color: #85858e;
+
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   34. PRIMARY BUTTON
+   ========================================================= */
+
+.primary-btn {
+    padding: 11px 16px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #ffffff;
+
+    color: #111111;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    flex-shrink: 0;
+}
+
+.primary-btn:hover {
+    opacity: 0.9;
+}
+
+
+/* =========================================================
+   35. MOBILE RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+
+        overflow: hidden;
     }
 
 
-    if (
-        file.type !==
-        "application/pdf"
-    ) {
+    /* APP */
 
-        showUploadStatus(
-            "Please select a PDF file.",
-            "error"
-        );
+    #appShell {
+        width: 100%;
+        height: 100dvh;
 
-        return;
+        min-height: 100dvh;
 
+        overflow: hidden;
     }
 
 
-    showUploadStatus(
-        "Uploading PDF...",
-        "loading"
-    );
+    /* MOBILE SIDEBAR */
+
+    .sidebar {
+        position: fixed;
+
+        top: 0;
+        left: 0;
+
+        width: 280px;
+        max-width: 82vw;
+
+        height: 100dvh;
+
+        z-index: 1000;
+
+        transform: translateX(-100%);
+
+        transition: transform 0.25s ease;
+
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
 
 
-    const formData =
-        new FormData();
+    /* DARK OVERLAY
+       (shown/hidden via the real .sidebar-overlay element,
+       not a ::after pseudo-element, so it can be clicked) */
+
+    body.sidebar-open .sidebar-overlay {
+        display: block;
+    }
 
 
-    formData.append(
-        "file",
-        file
-    );
+    /* MAIN CONTENT */
+
+    .main-content {
+        width: 100%;
+
+        min-width: 0;
+
+        height: 100dvh;
+
+        overflow: hidden;
+    }
 
 
-    try {
+    /* TOPBAR */
 
-        const response =
-            await fetch(
-                BACKEND_URL + "/upload",
-                {
-                    method: "POST",
+    .topbar {
+        width: 100%;
 
-                    body: formData
-                }
-            );
+        min-height: 68px;
 
+        padding: 12px 14px;
 
-        if (!response.ok) {
+        flex-shrink: 0;
+    }
 
-            throw new Error(
-                "Upload failed with status " +
-                response.status
-            );
+    .mobile-menu-button {
+        display: flex;
+    }
 
-        }
+    #pageTitle {
+        font-size: 19px;
+    }
 
-
-        const data =
-            await response.json();
+    #pageSubtitle {
+        font-size: 12px;
+    }
 
 
-        showUploadStatus(
-            data.message ||
-            "PDF uploaded successfully.",
-            "success"
-        );
+    /* CHAT SECTION */
+
+    #chatSection {
+        width: 100%;
+
+        height: calc(100dvh - 68px);
+
+        min-height: 0;
+
+        display: flex;
+        flex-direction: column;
+
+        position: relative;
+
+        overflow: hidden;
+    }
 
 
-    } catch (error) {
+    /* CHATBOX */
 
-        console.error(
-            "PDF upload error:",
-            error
-        );
+    #chatbox {
+        width: 100%;
+
+        flex: 1;
+
+        min-height: 0;
+
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        padding: 18px 12px 125px;
+    }
 
 
-        showUploadStatus(
-            "PDF upload failed.",
-            "error"
-        );
+    /* WELCOME */
 
-    } finally {
+    .welcome-message {
+        width: 100%;
 
-        pdfInput.value = "";
+        min-height: 60vh;
 
+        padding: 25px 12px 40px;
+    }
+
+    .welcome-icon {
+        width: 82px;
+        height: 82px;
+
+        margin-bottom: 22px;
+
+        border-radius: 19px;
+
+        font-size: 40px;
+    }
+
+    .welcome-message h2 {
+        font-size: 28px;
+
+        line-height: 1.2;
+
+        margin-bottom: 12px;
+    }
+
+    .welcome-message p {
+        max-width: 360px;
+
+        font-size: 15px;
+
+        line-height: 1.55;
+    }
+
+
+    /* MESSAGES */
+
+    .message {
+        margin-bottom: 14px;
+    }
+
+    .user-message {
+        padding-left: 8%;
+    }
+
+    .ai-message {
+        padding-right: 8%;
+    }
+
+    .user-message .message-content,
+    .ai-message .message-content {
+        max-width: 88%;
+
+        font-size: 15px;
+
+        padding: 10px 13px;
+    }
+
+
+    /* COMPOSER */
+
+    .composer-container {
+        position: absolute;
+
+        left: 0;
+        right: 0;
+        bottom: 0;
+
+        transform: none;
+
+        width: 100%;
+
+        padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+
+        z-index: 100;
+    }
+
+    .composer-box {
+        width: 100%;
+
+        padding: 7px;
+
+        border-radius: 15px;
+    }
+
+    .attachment-btn,
+    .send-btn {
+        width: 40px;
+        height: 40px;
+
+        flex-shrink: 0;
+    }
+
+    #userInput {
+        min-height: 40px;
+
+        max-height: 120px;
+
+        padding: 9px 5px;
+
+        font-size: 16px;
+    }
+
+
+    /* ATTACHMENT MENU */
+
+    .attachment-menu {
+        left: 8px;
+
+        bottom: calc(100% + 8px);
+
+        width: 185px;
+    }
+
+
+    /* HISTORY */
+
+    #historySection {
+        padding: 16px 12px;
+
+        overflow-y: auto;
+    }
+
+    .history-item {
+        padding: 13px;
+
+        gap: 10px;
+    }
+
+    .history-title {
+        font-size: 13px;
+    }
+
+    .history-date {
+        font-size: 10px;
+    }
+
+    .history-open-btn {
+        padding: 7px 10px;
+
+        flex-shrink: 0;
+    }
+
+
+    /* OTHER SECTIONS */
+
+    #documentsSection,
+    #visionSection,
+    #hardwareSection,
+    #settingsSection {
+        padding: 20px 14px;
+
+        overflow-y: auto;
+    }
+
+    .section-header h2 {
+        font-size: 19px;
+    }
+
+    .document-item {
+        padding: 12px;
+
+        gap: 11px;
+    }
+
+    .document-name {
+        font-size: 13px;
+    }
+
+
+    /* SIDEBAR BRAND */
+
+    .brand {
+        padding: 18px 16px;
+    }
+
+    .new-chat-btn {
+        margin: 14px 12px 10px;
+    }
+
+
+    /* AUTH MOBILE */
+
+    .auth-screen {
+        align-items: flex-start;
+
+        padding: 25px 16px;
+
+        padding-top: max(25px, env(safe-area-inset-top));
+    }
+
+    .auth-card {
+        max-width: 100%;
+
+        margin-top: 30px;
+
+        padding: 25px 20px;
+
+        border-radius: 16px;
+    }
+
+    .auth-title {
+        font-size: 25px;
     }
 
 }
 
 
 /* =========================================================
-   20. IMAGE SELECTION
+   36. VERY SMALL PHONES
    ========================================================= */
 
-function selectImage() {
+@media (max-width: 390px) {
 
-    if (!imageInput) {
-        return;
+    .sidebar {
+        width: 270px;
     }
 
-
-    toggleAttachmentMenu(
-        false
-    );
-
-
-    imageInput.click();
-
-}
-
-
-/* =========================================================
-   21. IMAGE HANDLING
-   ========================================================= */
-
-function handleImageSelected(
-    file
-) {
-
-    if (!file) {
-        return;
+    .topbar {
+        padding-left: 10px;
+        padding-right: 10px;
     }
 
-
-    showUploadStatus(
-        "Image selected. Vision integration will be added next.",
-        "loading"
-    );
-
-
-    imageInput.value = "";
-
-}
-
-
-/* =========================================================
-   22. UPLOAD STATUS
-   ========================================================= */
-
-function showUploadStatus(
-    message,
-    type = ""
-) {
-
-    if (!uploadStatus) {
-        return;
+    #pageTitle {
+        font-size: 18px;
     }
 
-
-    uploadStatus.textContent =
-        message;
-
-
-    uploadStatus.className =
-        "upload-status";
-
-
-    if (type) {
-
-        uploadStatus.classList.add(
-            type
-        );
-
+    #pageSubtitle {
+        font-size: 11px;
     }
 
+    .welcome-message h2 {
+        font-size: 25px;
+    }
 
-    if (
-        type === "success"
-    ) {
+    .welcome-message p {
+        font-size: 14px;
+    }
 
-        setTimeout(
-            function () {
+    .user-message .message-content,
+    .ai-message .message-content {
+        max-width: 92%;
 
-                uploadStatus.textContent =
-                    "";
+        font-size: 14px;
+    }
 
-            },
-            5000
-        );
-
+    .composer-container {
+        padding-left: 7px;
+        padding-right: 7px;
     }
 
 }
 
 
 /* =========================================================
-   23. ATTACHMENT MENU
+   37. LANDSCAPE MOBILE
    ========================================================= */
 
-function toggleAttachmentMenu(
-    forceState
-) {
+@media (max-width: 900px) and (orientation: landscape) {
 
-    if (!attachmentMenu) {
-        return;
+    .topbar {
+        min-height: 58px;
+
+        padding-top: 8px;
+        padding-bottom: 8px;
     }
 
-
-    if (
-        typeof forceState ===
-        "boolean"
-    ) {
-
-        if (forceState) {
-
-            attachmentMenu.classList.add(
-                "show"
-            );
-
-        } else {
-
-            attachmentMenu.classList.remove(
-                "show"
-            );
-
-        }
-
-        return;
-
+    #chatSection {
+        height: calc(100dvh - 58px);
     }
 
+    .welcome-message {
+        min-height: 100%;
 
-    attachmentMenu.classList.toggle(
-        "show"
-    );
-
-}
-
-
-/* =========================================================
-   24. NEW CHAT
-   ========================================================= */
-
-async function newChat() {
-
-    saveCurrentConversation();
-
-
-    currentMessages = [];
-
-
-    if (chatbox) {
-
-        chatbox.innerHTML = `
-
-            <div class="welcome-message">
-
-                <div class="welcome-icon">
-                    🤖
-                </div>
-
-                <h2>
-                    How can I help you?
-                </h2>
-
-                <p>
-                    Ask me anything or upload a document
-                    to work with your knowledge base.
-                </p>
-
-            </div>
-
-        `;
-
+        padding-top: 20px;
+        padding-bottom: 90px;
     }
 
+    .welcome-icon {
+        width: 60px;
+        height: 60px;
 
-    if (userInput) {
+        font-size: 30px;
 
-        userInput.value = "";
-
-        autoResizeInput();
-
-        userInput.focus();
-
+        margin-bottom: 12px;
     }
 
+    .welcome-message h2 {
+        font-size: 23px;
+    }
 
-    showSection(
-        "chat"
-    );
+    .welcome-message p {
+        font-size: 13px;
+    }
 
-
-    closeSidebar();
-
-
-    try {
-
-        await fetch(
-            BACKEND_URL + "/reset",
-            {
-                method: "POST"
-            }
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "Backend reset failed:",
-            error
-        );
-
+    #chatbox {
+        padding-bottom: 105px;
     }
 
 }
 
 
 /* =========================================================
-   25. SAVE LOCAL CONVERSATION
+   38. REDUCED MOTION
    ========================================================= */
 
-function saveCurrentConversation() {
+@media (prefers-reduced-motion: reduce) {
 
-    if (
-        !currentMessages ||
-        currentMessages.length === 0
-    ) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
 
-        return;
+        transition: none !important;
 
-    }
-
-
-    const firstUserMessage =
-        currentMessages.find(
-            function (message) {
-
-                return message.role ===
-                    "user";
-
-            }
-        );
-
-
-    if (!firstUserMessage) {
-        return;
-    }
-
-
-    const title =
-        firstUserMessage.content
-            .substring(0, 45);
-
-
-    let histories =
-        getHistories();
-
-
-    if (
-        histories.length > 0
-    ) {
-
-        const latest =
-            histories[0];
-
-
-        if (
-            latest &&
-            latest.messages &&
-            JSON.stringify(
-                latest.messages
-            ) ===
-            JSON.stringify(
-                currentMessages
-            )
-        ) {
-
-            return;
-
-        }
-
-    }
-
-
-    const conversation = {
-
-        id: Date.now(),
-
-        title:
-            title ||
-            "New Conversation",
-
-        date:
-            new Date().toLocaleString(),
-
-        messages:
-            [...currentMessages]
-
-    };
-
-
-    histories.unshift(
-        conversation
-    );
-
-
-    histories =
-        histories.slice(
-            0,
-            30
-        );
-
-
-    localStorage.setItem(
-        HISTORY_KEY,
-        JSON.stringify(
-            histories
-        )
-    );
-
-
-    loadHistoryList();
-
-}
-
-
-/* =========================================================
-   26. GET LOCAL HISTORY
-   ========================================================= */
-
-function getHistories() {
-
-    try {
-
-        const stored =
-            localStorage.getItem(
-                HISTORY_KEY
-            );
-
-
-        if (!stored) {
-
-            return [];
-
-        }
-
-
-        const histories =
-            JSON.parse(
-                stored
-            );
-
-
-        return Array.isArray(
-            histories
-        )
-            ? histories
-            : [];
-
-
-    } catch (error) {
-
-        console.error(
-            "History read error:",
-            error
-        );
-
-        return [];
-
+        animation: none !important;
     }
 
 }
-
-
-/* =========================================================
-   27. LOAD HISTORY LIST
-   ========================================================= */
-
-function loadHistoryList() {
-
-    const historyList =
-        document.getElementById(
-            "historyList"
-        );
-
-
-    if (!historyList) {
-        return;
-    }
-
-
-    const histories =
-        getHistories();
-
-
-    if (
-        histories.length === 0
-    ) {
-
-        historyList.innerHTML = `
-
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    🕘
-                </div>
-
-                <h3>
-                    No chat history yet
-                </h3>
-
-                <p>
-                    Your conversations will appear here.
-                </p>
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    historyList.innerHTML = "";
-
-
-    histories.forEach(
-        function (conversation) {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                "history-item";
-
-
-            item.innerHTML = `
-
-                <div class="history-item-main">
-
-                    <div class="history-title">
-                        ${escapeHTML(
-                            conversation.title
-                        )}
-                    </div>
-
-                    <div class="history-date">
-                        ${escapeHTML(
-                            conversation.date
-                        )}
-                    </div>
-
-                </div>
-
-                <button
-                    class="history-open-btn"
-                    type="button"
-                >
-                    Open
-                </button>
-
-            `;
-
-
-            const openButton =
-                item.querySelector(
-                    ".history-open-btn"
-                );
-
-
-            if (openButton) {
-
-                openButton.addEventListener(
-                    "click",
-                    function () {
-
-                        restoreConversation(
-                            conversation.id
-                        );
-
-                    }
-                );
-
-            }
-
-
-            historyList.appendChild(
-                item
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   28. RESTORE CONVERSATION
-   ========================================================= */
-
-function restoreConversation(
-    id
-) {
-
-    const histories =
-        getHistories();
-
-
-    const conversation =
-        histories.find(
-            function (item) {
-
-                return item.id === id;
-
-            }
-        );
-
-
-    if (!conversation) {
-        return;
-    }
-
-
-    currentMessages =
-        [
-            ...(conversation.messages || [])
-        ];
-
-
-    if (chatbox) {
-
-        chatbox.innerHTML = "";
-
-    }
-
-
-    currentMessages.forEach(
-        function (message) {
-
-            addMessage(
-                message.role,
-                message.content
-            );
-
-        }
-    );
-
-
-    showSection(
-        "chat"
-    );
-
-
-    if (userInput) {
-
-        userInput.focus();
-
-    }
-
-}
-
-
-/* =========================================================
-   29. CLEAR HISTORY
-   ========================================================= */
-
-function clearChatHistory() {
-
-    const confirmed =
-        confirm(
-            "Are you sure you want to clear your local chat history?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    localStorage.removeItem(
-        HISTORY_KEY
-    );
-
-
-    currentMessages = [];
-
-
-    loadHistoryList();
-
-}
-
-
-/* =========================================================
-   30. SECTION NAVIGATION
-   ========================================================= */
-
-function showSection(
-    section
-) {
-
-    const sections = {
-
-        chat:
-            document.getElementById(
-                "chatSection"
-            ),
-
-        history:
-            document.getElementById(
-                "historySection"
-            ),
-
-        documents:
-            document.getElementById(
-                "documentsSection"
-            ),
-
-        vision:
-            document.getElementById(
-                "visionSection"
-            ),
-
-        hardware:
-            document.getElementById(
-                "hardwareSection"
-            ),
-
-        settings:
-            document.getElementById(
-                "settingsSection"
-            )
-
-    };
-
-
-    Object.values(
-        sections
-    ).forEach(
-        function (element) {
-
-            if (element) {
-
-                element.classList.remove(
-                    "active"
-                );
-
-            }
-
-        }
-    );
-
-
-    if (
-        sections[section]
-    ) {
-
-        sections[section].classList.add(
-            "active"
-        );
-
-    }
-
-
-    const navItems =
-        document.querySelectorAll(
-            ".nav-item"
-        );
-
-
-    navItems.forEach(
-        function (item) {
-
-            item.classList.remove(
-                "active"
-            );
-
-        }
-    );
-
-
-    const sectionIndex = {
-
-        chat: 0,
-
-        history: 1,
-
-        documents: 2,
-
-        vision: 3,
-
-        hardware: 4,
-
-        settings: 5
-
-    };
-
-
-    const index =
-        sectionIndex[section];
-
-
-    if (
-        index !== undefined &&
-        navItems[index]
-    ) {
-
-        navItems[index].classList.add(
-            "active"
-        );
-
-    }
-
-
-    const titles = {
-
-        chat: [
-            "AI Chat",
-            "Your personal AI assistant"
-        ],
-
-        history: [
-            "Chat History",
-            "Your previous conversations"
-        ],
-
-        documents: [
-            "Documents",
-            "Your AI knowledge base"
-        ],
-
-        vision: [
-            "Vision",
-            "Image understanding"
-        ],
-
-        hardware: [
-            "Hardware",
-            "Connect your AI assistant to hardware"
-        ],
-
-        settings: [
-            "Settings",
-            "Manage your assistant"
-        ]
-
-    };
-
-
-    const titleData =
-        titles[section];
-
-
-    if (titleData) {
-
-        const pageTitle =
-            document.getElementById(
-                "pageTitle"
-            );
-
-        const pageSubtitle =
-            document.getElementById(
-                "pageSubtitle"
-            );
-
-
-        if (pageTitle) {
-
-            pageTitle.textContent =
-                titleData[0];
-
-        }
-
-
-        if (pageSubtitle) {
-
-            pageSubtitle.textContent =
-                titleData[1];
-
-        }
-
-    }
-
-
-    /* On phone, picking a section from the sidebar
-       should close the sidebar so you see the section. */
-
-    closeSidebar();
-
-}
-
-
-/* =========================================================
-   30b. MOBILE SIDEBAR OPEN / CLOSE
-   ========================================================= */
-
-function toggleSidebar() {
-
-    document.body.classList.toggle(
-        "sidebar-open"
-    );
-
-}
-
-
-function openSidebar() {
-
-    document.body.classList.add(
-        "sidebar-open"
-    );
-
-}
-
-
-function closeSidebar() {
-
-    document.body.classList.remove(
-        "sidebar-open"
-    );
-
-}
-
-
-/* =========================================================
-   31. AUTO RESIZE TEXTAREA
-   ========================================================= */
-
-function autoResizeInput() {
-
-    if (!userInput) {
-        return;
-    }
-
-
-    userInput.style.height =
-        "auto";
-
-
-    userInput.style.height =
-        Math.min(
-            userInput.scrollHeight,
-            180
-        ) + "px";
-
-}
-
-
-/* =========================================================
-   32. SCROLL CHAT
-   ========================================================= */
-
-function scrollToBottom() {
-
-    if (!chatbox) {
-        return;
-    }
-
-
-    chatbox.scrollTop =
-        chatbox.scrollHeight;
-
-}
-
-
-/* =========================================================
-   33. ESCAPE HTML
-   ========================================================= */
-
-function escapeHTML(
-    value
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        value == null
-            ? ""
-            : String(value);
-
-
-    return div.innerHTML;
-
-}
-
-
-/* =========================================================
-   34. CLOSE ATTACHMENT MENU ON OUTSIDE CLICK
-   ========================================================= */
-
-document.addEventListener(
-    "click",
-    function (event) {
-
-        if (!attachmentMenu) {
-
-            return;
-
-        }
-
-
-        const clickedInsideMenu =
-            attachmentMenu.contains(
-                event.target
-            );
-
-
-        const clickedButton =
-            event.target.closest(
-                ".attachment-btn"
-            );
-
-
-        if (
-            !clickedInsideMenu &&
-            !clickedButton
-        ) {
-
-            attachmentMenu.classList.remove(
-                "show"
-            );
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   35. CLOSE MOBILE SIDEBAR WITH ESCAPE KEY
-   ========================================================= */
-
-document.addEventListener(
-    "keydown",
-    function (event) {
-
-        if (event.key === "Escape") {
-
-            closeSidebar();
-
-        }
-
-    }
-);
