@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-requests
-pypdf
 python-multipart
+pypdf
 openai
+httpx
