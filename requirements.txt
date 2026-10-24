@@ -5,3 +5,4 @@ chromadb
 sentence-transformers
 pypdf
 python-multipart
+certifi>=2026.10.19
