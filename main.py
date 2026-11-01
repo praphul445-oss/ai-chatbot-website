@@ -40,7 +40,7 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import httpx
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from pydantic import BaseModel
@@ -115,6 +115,7 @@ os.makedirs(USERS_DIR, exist_ok=True)
 MAX_MEMORY_MESSAGES = 10
 MAX_MESSAGE_CHARS = 4000
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB
 
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
@@ -1047,6 +1048,191 @@ def revoke_device(
         "message": "Device revoked successfully.",
     }
 
+
+# =========================================================
+# HARDWARE: VOICE INPUT
+# =========================================================
+
+@app.post("/hardware/voice")
+def hardware_voice(
+    device_id: str = Form(...),
+    audio: UploadFile = File(...),
+    authorization: str = Header(None),
+):
+    """
+    Receive a WAV recording from a paired ESP32-S3.
+
+    1. Authenticate the device.
+    2. Find the device owner's user ID.
+    3. Transcribe the recording with Groq Whisper.
+    4. Pass the transcription through the existing chatbot.
+
+    The ESP32 cannot choose another user's ID.
+    """
+
+    # Validate device ID.
+    safe_device_id = clean_device_id(device_id)
+
+    if not safe_device_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid device ID.",
+        )
+
+    # Authenticate the device using its paired bearer token.
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing device credential.",
+        )
+
+    device_token = authorization.split(" ", 1)[1].strip()
+
+    if not device_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing device credential.",
+        )
+
+    device = verify_device_credential(
+        safe_device_id,
+        device_token,
+    )
+
+    if not device:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or revoked device credential.",
+        )
+
+    # Obtain the owner from the trusted device registry.
+    owner_id = clean_user_id(device.get("owner_id"))
+
+    if not owner_id:
+        raise HTTPException(
+            status_code=401,
+            detail="The device has no valid registered owner.",
+        )
+
+    # Confirm the AI service is configured.
+    if openai_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="The AI service is not configured.",
+        )
+
+    # Validate the uploaded recording.
+    filename = (audio.filename or "").lower()
+
+    if not filename.endswith(".wav"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a WAV audio recording.",
+        )
+
+    content_type = (audio.content_type or "").lower()
+
+    if content_type not in {
+        "audio/wav",
+        "audio/x-wav",
+        "audio/wave",
+        "application/octet-stream",
+    }:
+        raise HTTPException(
+            status_code=415,
+            detail="Unsupported audio content type.",
+        )
+
+    try:
+        audio_data = audio.file.read(MAX_AUDIO_BYTES + 1)
+    except Exception as error:
+        print("VOICE AUDIO READ ERROR:", repr(error))
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read the audio recording.",
+        )
+
+    if not audio_data:
+        raise HTTPException(
+            status_code=400,
+            detail="The audio recording is empty.",
+        )
+
+    if len(audio_data) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Audio recording exceeds the 10 MB limit.",
+        )
+
+    # Transcribe the recording.
+    try:
+        transcription = openai_client.audio.transcriptions.create(
+            file=("recording.wav", audio_data, "audio/wav"),
+            model="whisper-large-v3-turbo",
+        )
+
+        transcript = (transcription.text or "").strip()
+
+    except Exception as error:
+        print("VOICE TRANSCRIPTION ERROR:", repr(error))
+        raise HTTPException(
+            status_code=502,
+            detail="Speech transcription failed. Please try again.",
+        )
+
+    if not transcript:
+        return {
+            "success": True,
+            "transcript": "",
+            "reply": "I couldn't detect any speech. Please try again.",
+            "sources": [],
+        }
+
+    if len(transcript) > MAX_MESSAGE_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail="The transcribed message is too long.",
+        )
+
+    # Update the device's last-seen timestamp.
+    # This is done only after the device has been authenticated.
+    with _hardware_lock:
+        devices = load_devices()
+        current_device = devices.get(safe_device_id)
+
+        if (
+            not current_device
+            or current_device.get("revoked", False)
+            or current_device.get("owner_id") != owner_id
+            or not secrets.compare_digest(
+                current_device.get("token_hash", ""),
+                hash_secret(device_token),
+            )
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Device authentication failed.",
+            )
+
+        current_device["last_seen"] = iso_now()
+        current_device["last_status"] = "online"
+        devices[safe_device_id] = current_device
+        save_devices(devices)
+
+    # Reuse the existing chat function, memory, and PDF RAG.
+    # The owner's ID comes from the authenticated device registry.
+    chat_result = chat(
+        ChatRequest(message=transcript),
+        user_id=owner_id,
+    )
+
+    return {
+        "success": True,
+        "device_id": safe_device_id,
+        "transcript": transcript,
+        "reply": chat_result.get("reply", ""),
+        "sources": chat_result.get("sources", []),
+    }
 
 # =========================================================
 # CHAT
